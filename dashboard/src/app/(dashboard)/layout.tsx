@@ -15,7 +15,7 @@ export default function DashboardLayout({
         <header className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between border-b border-stone-200 dark:border-stone-800 bg-background/95 backdrop-blur px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1 size-7 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Separator orientation="vertical" className="mr-2 h-4 self-center!" />
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="font-semibold text-stone-900 dark:text-stone-100">
                 SubVerif Pro
