@@ -151,7 +151,7 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
           },
           cnss: {
             numAffiliation: '7654321',
-            cotisations: '24 500,00 DH'
+            cotisations: '24 500,00 MAD'
           }
         }
       });

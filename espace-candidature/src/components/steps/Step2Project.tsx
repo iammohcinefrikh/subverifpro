@@ -113,7 +113,7 @@ export const Step2Project: React.FC<Step2Props> = ({ initialData, onNext, onPrev
                   {selectedProg.status === 'ACTIVE' ? 'Programme Actif' : 'Éditions Clôturées (Historique)'}
                 </span>
                 <span className="font-bold text-brand-900 text-xs">
-                  Plafond : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} DH
+                  Plafond : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} MAD
                 </span>
               </div>
             </div>

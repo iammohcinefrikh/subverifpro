@@ -163,11 +163,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ payload, o
             </h3>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-500">Coût total opération :</span>
-              <span className="font-bold text-slate-900">{payload.budget.montant_total.toLocaleString('fr-FR')} €</span>
+              <span className="font-bold text-slate-900">{payload.budget.montant_total.toLocaleString('fr-FR')} MAD</span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-brand-700 font-semibold">Subvention sollicitée :</span>
-              <span className="font-bold text-brand-700 text-sm">{payload.budget.montant_demande.toLocaleString('fr-FR')} €</span>
+              <span className="font-bold text-brand-700 text-sm">{payload.budget.montant_demande.toLocaleString('fr-FR')} MAD</span>
             </div>
             <p className="text-[11px] text-slate-400 pt-1">
               {payload.budget.depenses.length} poste(s) de dépense • {payload.budget.financements.length} source(s) de financement

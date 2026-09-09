@@ -113,7 +113,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
           title="Préremplir avec un exemple de budget équilibré"
         >
           <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-          <span>Exemple budget 600k (DH / €)</span>
+          <span>Exemple budget 600k (MAD)</span>
         </button>
       </div>
 
@@ -126,7 +126,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <Input
-            label="Coût total prévisionnel du projet (€)"
+            label="Coût total prévisionnel du projet (MAD)"
             type="number"
             min="0"
             step="any"
@@ -136,7 +136,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
           />
 
           <Input
-            label="Montant de la subvention demandée (€)"
+            label="Montant de la subvention demandée (MAD)"
             type="number"
             min="0"
             step="any"
@@ -176,7 +176,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
               Répartition des dépenses par poste
             </h3>
             <p className="text-xs text-slate-500">
-              Total cumulé des dépenses saisies : <strong className="text-slate-900">{totalDepensesCalcule.toLocaleString('fr-FR')} €</strong>
+              Total cumulé des dépenses saisies : <strong className="text-slate-900">{totalDepensesCalcule.toLocaleString('fr-FR')} MAD</strong>
             </p>
           </div>
 
@@ -222,10 +222,10 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
                     <input
                       type="number"
                       placeholder="Montant"
-                      className="w-full text-sm py-2 pl-3 pr-8 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full text-sm py-2 pl-3 pr-11 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                       {...register(`depenses.${index}.montant` as const, { valueAsNumber: true })}
                     />
-                    <span className="absolute right-3 top-2 text-xs font-semibold text-slate-400">€</span>
+                    <span className="absolute right-3 top-2 text-xs font-semibold text-slate-400">MAD</span>
                   </div>
                   {errors.depenses?.[index]?.montant && (
                     <p className="text-[11px] text-rose-600 mt-1">{errors.depenses[index]?.montant?.message}</p>
@@ -258,7 +258,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
               Plan de financement (Autres financeurs & fonds propres)
             </h3>
             <p className="text-xs text-slate-500">
-              Total cumulé des financements : <strong className="text-slate-900">{totalFinancementsCalcule.toLocaleString('fr-FR')} €</strong>
+              Total cumulé des financements : <strong className="text-slate-900">{totalFinancementsCalcule.toLocaleString('fr-FR')} MAD</strong>
             </p>
           </div>
 
@@ -293,10 +293,10 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
                     <input
                       type="number"
                       placeholder="Montant"
-                      className="w-full text-sm py-2 pl-3 pr-8 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      className="w-full text-sm py-2 pl-3 pr-11 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                       {...register(`financements.${index}.montant` as const, { valueAsNumber: true })}
                     />
-                    <span className="absolute right-3 top-2 text-xs font-semibold text-slate-400">€</span>
+                    <span className="absolute right-3 top-2 text-xs font-semibold text-slate-400">MAD</span>
                   </div>
                   {errors.financements?.[index]?.montant && (
                     <p className="text-[11px] text-rose-600 mt-1">{errors.financements[index]?.montant?.message}</p>

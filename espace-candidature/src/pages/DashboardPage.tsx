@@ -255,8 +255,8 @@ export const DashboardPage: React.FC = () => {
             </span>
             <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: primaryColor }}>
               <Coins className="w-3.5 h-3.5" />
-              <span>{user.budget.montant_demande.toLocaleString('fr-FR')} DH</span>
-              <span className="text-sand-500 font-normal">/ {user.budget.montant_total.toLocaleString('fr-FR')} DH</span>
+              <span>{user.budget.montant_demande.toLocaleString('fr-FR')} MAD</span>
+              <span className="text-sand-500 font-normal">/ {user.budget.montant_total.toLocaleString('fr-FR')} MAD</span>
             </div>
           </div>
         </div>

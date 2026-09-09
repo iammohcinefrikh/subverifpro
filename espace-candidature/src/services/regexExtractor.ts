@@ -40,8 +40,7 @@ export function extractFieldsFromText(text: string): DetectedFields {
     || normalized.match(/(\d{1,3}(?:[\s.]\d{3})*(?:[,\.]\d{2})?)\s*(?:DH|MAD|€|EUR)/i);
   if (montantMatch) {
     const rawVal = montantMatch[1].replace(/\s+/g, ' ').trim();
-    const currency = /DH|MAD|dirham/i.test(montantMatch[0]) ? 'DH' : '€';
-    result.montant = `${rawVal} ${currency}`;
+    result.montant = `${rawVal} MAD`;
   }
 
   // 4. Détection Date (formats JJ/MM/AAAA ou JJ-MM-AAAA ou texte "15 janvier 2026")
