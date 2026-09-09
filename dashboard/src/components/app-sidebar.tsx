@@ -51,10 +51,10 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       await signOut()
-      router.push("/login")
+      router.push("/")
       router.refresh()
     } catch {
-      router.push("/login")
+      router.push("/")
     }
   }
 

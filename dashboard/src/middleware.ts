@@ -8,17 +8,17 @@ export function middleware(request: NextRequest) {
     request.cookies.get("better-auth.session_token")?.value ||
     request.cookies.get("__Secure-better-auth.session_token")?.value
 
-  const isAuthRoute = pathname.startsWith("/login")
+  const isAuthRoute = pathname === "/"
   const isDashboardRoute = pathname.startsWith("/dashboard")
 
-  // If user is trying to access dashboard without session token, redirect to /login
+  // If user is trying to access dashboard without session token, redirect to the login (index)
   if (isDashboardRoute && !sessionToken) {
-    const loginUrl = new URL("/login", request.url)
+    const loginUrl = new URL("/", request.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  // If user is already authenticated and visits /login, redirect to /dashboard
+  // If user is already authenticated and visits /, redirect to /dashboard
   if (isAuthRoute && sessionToken) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
@@ -29,6 +29,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/login",
+    "/",
   ],
 }
