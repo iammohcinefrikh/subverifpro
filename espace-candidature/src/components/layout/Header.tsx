@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
-import { ShieldCheck, User, LogOut, Home, PlusCircle } from 'lucide-react';
+import { User, LogOut, Home, PlusCircle } from 'lucide-react';
 import { KhatemSeal, RegionalThemeSwitcher, useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 export const Header: React.FC = () => {
@@ -11,27 +11,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="bg-sand-50/95 backdrop-blur-md border-b border-sand-300 sticky top-0 z-40 shadow-subtle no-print transition-colors">
-      {/* 1. Bandeau Institutionnel Supérieur */}
-      <div className="bg-indigo-950 text-sand-200 text-[11px] py-1.5 px-4 sm:px-6 border-b border-gold-500/20">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 font-medium tracking-wide">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50" />
-            <span className="font-semibold text-gold-400">ROYAUME DU MAROC</span>
-            <span className="text-sand-400 hidden sm:inline">•</span>
-            <span className="hidden sm:inline">Guichet Unique Numérique des Subventions Publiques</span>
-          </div>
-          <div className="flex items-center gap-4 text-sand-300 text-[11px]">
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Traitement OCR Local & Souverain</span>
-            </span>
-            <span className="hidden md:inline text-gold-500/40">|</span>
-            <span className="hidden md:inline text-sand-400">Exercice 2026</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Barre Principale de Navigation */}
+      {/* Barre Principale de Navigation */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
         {/* Logo & Emblème Sceau Khatem */}
         <Link to="/" className="flex items-center gap-3.5 group cursor-pointer text-left">
