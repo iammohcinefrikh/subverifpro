@@ -11,6 +11,7 @@ import { useWizardForm } from '../hooks/useWizardForm';
 import { useAuth } from '../context/useAuth';
 import { registerWizardSubmissionAsCandidate } from '../services/mockAuthService';
 import { MOCK_CANDIDATES } from '../config/mockCandidates';
+import { ZelligePattern, useMoroccanTheme } from '../components/moroccan/MoroccanPatterns';
 
 export const WizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -92,8 +93,12 @@ export const WizardPage: React.FC = () => {
     );
   }
 
+  const { primaryColor } = useMoroccanTheme();
+
   return (
-    <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 relative">
+      <ZelligePattern id="zel-wizard" color={primaryColor} opacity={0.03} />
+
       {/* Wizard Stepper */}
       <Stepper
         currentStep={currentStep}

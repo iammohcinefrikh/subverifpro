@@ -1,121 +1,136 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
-import { ShieldCheck, FileCheck2, User, LogOut, Home, PlusCircle } from 'lucide-react';
+import { ShieldCheck, User, LogOut, Home, PlusCircle } from 'lucide-react';
+import { KhatemSeal, RegionalThemeSwitcher, useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 export const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
+  const { primaryColor, isFes } = useMoroccanTheme();
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-subtle no-print">
-      {/* Top Banner (Marianne / Official Institution look) */}
-      <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4 sm:px-6">
+    <header className="bg-sand-50/95 backdrop-blur-md border-b border-sand-300 sticky top-0 z-40 shadow-subtle no-print transition-colors">
+      {/* 1. Bandeau Institutionnel Supérieur */}
+      <div className="bg-indigo-950 text-sand-200 text-[11px] py-1.5 px-4 sm:px-6 border-b border-gold-500/20">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-medium">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Système National de Réception des Demandes de Financement Public & Associatif</span>
+          <div className="flex items-center gap-2.5 font-medium tracking-wide">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50" />
+            <span className="font-semibold text-gold-400">ROYAUME DU MAROC</span>
+            <span className="text-sand-400 hidden sm:inline">•</span>
+            <span className="hidden sm:inline">Guichet Unique Numérique des Subventions Publiques</span>
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span className="flex items-center gap-1">
+          <div className="flex items-center gap-4 text-sand-300 text-[11px]">
+            <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              OCR Client Sécurisé (Zero Persistence)
+              <span>Traitement OCR Local & Souverain</span>
             </span>
-            <span className="hidden sm:inline">|</span>
-            <span className="hidden sm:inline">Session 2026</span>
+            <span className="hidden md:inline text-gold-500/40">|</span>
+            <span className="hidden md:inline text-sand-400">Exercice 2026</span>
           </div>
         </div>
       </div>
 
-      {/* Main Header */}
+      {/* 2. Barre Principale de Navigation */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        {/* Logo & Emblème Sceau Khatem */}
         <Link to="/" className="flex items-center gap-3.5 group cursor-pointer text-left">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 flex items-center justify-center text-white shadow-md shadow-brand-600/20 group-hover:scale-105 transition-transform">
-            <FileCheck2 className="w-5 h-5" />
+          <div className="relative flex items-center justify-center p-2 rounded-2xl bg-sand-200/80 border border-gold-400/40 group-hover:border-gold-500 shadow-sm transition-all">
+            <KhatemSeal size={30} strokeWidth={1.8} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl text-slate-900 tracking-tight group-hover:text-brand-700 transition-colors">
+              <span className="font-display font-bold text-2xl sm:text-[1.65rem] text-indigo-950 tracking-tight group-hover:text-terracotta-600 transition-colors">
                 SubVerif
               </span>
-              <span className="bg-brand-50 text-brand-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-brand-200">
-                Portail National
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full border tracking-wide uppercase"
+                style={{
+                  backgroundColor: isFes ? '#DCE8F6' : '#FAF4E3',
+                  color: isFes ? '#1E4F8C' : '#8F3209',
+                  borderColor: isFes ? '#BED4ED' : '#F4E7C3',
+                }}
+              >
+                Portail d'État
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-              Vérification Préalable, Classification & Extraction Numérique des Pièces
+            <p className="text-[11.5px] text-ink-800/75 font-medium hidden sm:block">
+              Dépôt Dématérialisé, Classification & Extraction Sécurisée des Pièces
             </p>
           </div>
         </Link>
 
-        {/* Navigation Links */}
-        <nav className="flex items-center gap-2 sm:gap-3 text-xs">
-          <Link
-            to="/"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              location.pathname === '/'
-                ? 'bg-slate-100 text-slate-900'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Accueil</span>
-          </Link>
+        {/* Navigation & Actions */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Sélecteur de Thème Régional (Atlas Terracotta ⇄ Fès Cobalt) */}
+          <RegionalThemeSwitcher />
 
-          {/* Onglet Déposer un dossier accessible uniquement si le candidat est authentifié */}
-          {isAuthenticated && user && (
+          <nav className="flex items-center gap-2 text-xs">
             <Link
-              to="/candidature"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                location.pathname === '/candidature'
-                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                  : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/50'
+              to="/"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
+                location.pathname === '/'
+                  ? 'bg-sand-200 text-indigo-950 border border-sand-300'
+                  : 'text-ink-800/80 hover:text-indigo-950 hover:bg-sand-200/50'
               }`}
             >
-              <PlusCircle className="w-3.5 h-3.5 text-brand-600" />
-              <span>Nouveau dossier</span>
+              <Home className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Accueil</span>
             </Link>
-          )}
 
-          {isAuthenticated && user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            {/* Nouveau dossier accessible aux candidats connectés */}
+            {isAuthenticated && user && (
               <Link
-                to="/dashboard"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
-                  location.pathname === '/dashboard'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-brand-50 text-brand-800 hover:bg-brand-100 border border-brand-200'
+                to="/candidature"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
+                  location.pathname === '/candidature'
+                    ? 'bg-terracotta-500 text-white shadow-sm shadow-terracotta-900/20'
+                    : 'text-terracotta-700 bg-terracotta-50 hover:bg-terracotta-100 border border-terracotta-200'
                 }`}
+                style={
+                  location.pathname === '/candidature'
+                    ? { backgroundColor: primaryColor }
+                    : {}
+                }
               >
-                <User className="w-3.5 h-3.5" />
-                <span className="max-w-[120px] truncate">{user.nomCourt}</span>
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Nouveau dossier</span>
               </Link>
+            )}
 
-              <button
-                type="button"
-                onClick={logout}
-                title="Se déconnecter"
-                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            {/* Profil ou Connexion */}
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-sand-300">
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-white shadow-sm transition-all"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span className="max-w-[120px] truncate">{user.nomCourt}</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Se déconnecter"
+                  className="p-1.5 text-sand-500 hover:text-terracotta-700 hover:bg-sand-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold border border-sand-300 bg-white hover:bg-sand-50 text-indigo-950 shadow-subtle hover:border-gold-400 transition-all"
               >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <Link
-              to="/login"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold border transition-all ${
-                location.pathname === '/login'
-                  ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
-                  : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400 hover:bg-slate-50'
-              }`}
-            >
-              <User className="w-3.5 h-3.5 text-brand-600" />
-              <span>Espace Candidat</span>
-            </Link>
-          )}
-        </nav>
+                <User className="w-3.5 h-3.5 text-terracotta-500" style={{ color: primaryColor }} />
+                <span>Espace Candidat</span>
+              </Link>
+            )}
+          </nav>
+        </div>
       </div>
     </header>
   );
 };
-

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { MoroccanThemeProvider } from './components/moroccan/MoroccanPatterns';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { LandingPage } from './pages/LandingPage';
@@ -11,9 +12,10 @@ import { WizardPage } from './pages/WizardPage';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
-          <Header />
+      <MoroccanThemeProvider>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col bg-sand-100 text-ink-900 font-sans transition-colors duration-300">
+            <Header />
 
           <main className="flex-1 w-full">
             <Routes>
@@ -37,7 +39,8 @@ export const App: React.FC = () => {
           <Footer />
         </div>
       </AuthProvider>
-    </BrowserRouter>
+    </MoroccanThemeProvider>
+  </BrowserRouter>
   );
 };
 

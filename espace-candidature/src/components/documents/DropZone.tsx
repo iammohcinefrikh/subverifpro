@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { UploadCloud, FileText, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, AlertCircle, ShieldCheck } from 'lucide-react';
 import { MAX_FILE_SIZE_BYTES } from '../../config/documentTypes';
+import { useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 interface DropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -11,6 +12,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, disabled = 
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { primaryColor } = useMoroccanTheme();
 
   const validateAndProcessFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -63,18 +65,20 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, disabled = 
 
   return (
     <div className="w-full space-y-3 text-left">
+      {/* Cadre ajouré d'inspiration Moucharabieh */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !disabled && inputRef.current?.click()}
-        className={`relative rounded-2xl border-2 border-dashed p-8 sm:p-10 text-center transition-all cursor-pointer ${
+        className={`relative rounded-2xl p-8 sm:p-10 text-center transition-all cursor-pointer border-2 border-dashed ${
           disabled
-            ? 'opacity-60 cursor-not-allowed bg-slate-50 border-slate-200'
+            ? 'opacity-60 cursor-not-allowed bg-sand-200/50 border-sand-300'
             : isDragOver
-            ? 'border-brand-500 bg-brand-50/80 shadow-lg ring-4 ring-brand-100 scale-[1.005]'
-            : 'border-slate-300 bg-slate-50/60 hover:bg-slate-50 hover:border-slate-400'
+            ? 'border-terracotta-500 bg-terracotta-50/60 shadow-lg ring-4 ring-gold-300/40 scale-[1.005]'
+            : 'border-sand-400/90 bg-white/80 hover:bg-sand-50/70 hover:border-terracotta-400 shadow-sm'
         }`}
+        style={isDragOver ? { borderColor: primaryColor } : {}}
       >
         <input
           ref={inputRef}
@@ -86,34 +90,44 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, disabled = 
           onChange={(e) => validateAndProcessFiles(e.target.files)}
         />
 
-        <div className="flex flex-col items-center justify-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-white shadow-card border border-slate-200 flex items-center justify-center text-brand-600">
+        <div className="flex flex-col items-center justify-center space-y-3.5">
+          <div
+            className="w-14 h-14 rounded-2xl bg-sand-100 shadow-card border border-sand-300 flex items-center justify-center text-terracotta-600 transition-transform group-hover:scale-105"
+            style={{ color: primaryColor }}
+          >
             <UploadCloud className="w-7 h-7" />
           </div>
 
           <div className="space-y-1">
-            <p className="text-sm font-bold text-slate-800">
+            <p className="text-sm font-bold text-indigo-950">
               Glissez et déposez vos pièces justificatives ici, ou{' '}
-              <span className="text-brand-600 hover:text-brand-700 underline font-semibold">
+              <span
+                className="text-terracotta-600 hover:text-terracotta-700 underline font-semibold cursor-pointer"
+                style={{ color: primaryColor }}
+              >
                 parcourez vos fichiers
               </span>
             </p>
-            <p className="text-xs text-slate-500">
-              Formats acceptés : PDF (texte & scanné), JPG, PNG • Maximum 10 Mo par document
+            <p className="text-xs text-sand-500">
+              Formats acceptés : PDF (texte vectoriel & scanné), JPG, PNG • Maximum 10 Mo par document
             </p>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1">
-            <span className="flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5 text-slate-400" />
-              Extraction OCR automatique dès le dépôt
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-ink-800/70 pt-2 border-t border-sand-200">
+            <span className="flex items-center gap-1.5 font-medium">
+              <FileText className="w-3.5 h-3.5 text-gold-600" />
+              Reconnaissance optique (OCR) en mémoire locale
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-emerald-700">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Conforme CNDP & Zéro transmission de brouillon
             </span>
           </div>
         </div>
       </div>
 
       {errorMessage && (
-        <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2 animate-fadeIn">
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-900 flex items-start gap-2.5 animate-fadeIn">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <p className="font-medium">{errorMessage}</p>
         </div>
