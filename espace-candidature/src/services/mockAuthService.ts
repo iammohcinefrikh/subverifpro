@@ -8,6 +8,85 @@ const STORAGE_SESSION_KEY = 'SUBVERIF_AUTH_SESSION';
 const STORAGE_JWT_KEY = 'SUBVERIF_JWT_TOKEN';
 
 /**
+ * Allège l'objet utilisateur pour ne jamais saturer le quota de 5 Mo du localStorage
+ * en éliminant les volumineuses chaînes base64 des fichiers numérisés.
+ */
+export function sanitizeUserForStorage(user: MockCandidateUser): MockCandidateUser {
+  if (!user) return user;
+  if (!user.dossier || !Array.isArray(user.dossier.pieces)) return user;
+
+  return {
+    ...user,
+    dossier: {
+      ...user.dossier,
+      pieces: user.dossier.pieces.map((p) => {
+        if (p.fichier_base64 && p.fichier_base64.length > 100) {
+          const { fichier_base64, ...rest } = p;
+          return { ...rest, fichier_base64: '' };
+        }
+        return p;
+      })
+    }
+  };
+}
+
+/**
+ * Nettoie le localStorage des données base64 excédentaires pour libérer immédiatement le quota.
+ */
+export function pruneLocalStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const rawUsers = localStorage.getItem(STORAGE_USERS_KEY);
+    if (rawUsers) {
+      const parsed = JSON.parse(rawUsers);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.map(sanitizeUserForStorage);
+        localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(cleaned));
+      }
+    }
+    const rawSession = localStorage.getItem(STORAGE_SESSION_KEY);
+    if (rawSession) {
+      const parsedSession = JSON.parse(rawSession);
+      if (parsedSession) {
+        const cleanedSession = sanitizeUserForStorage(parsedSession);
+        localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(cleanedSession));
+      }
+    }
+  } catch (err) {
+    console.warn('[Storage] Nettoyage automatique du localStorage:', err);
+  }
+}
+
+// Purge préventive immédiate au chargement du module
+if (typeof window !== 'undefined') {
+  try {
+    pruneLocalStorage();
+  } catch {}
+}
+
+/**
+ * Sauvegarde sécurisée dans le localStorage gérant QuotaExceededError
+ */
+export function safeSetLocalStorage(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.code === 1014) {
+      console.warn(`[Storage] Quota dépassé sur "${key}". Nettoyage d'urgence...`);
+      pruneLocalStorage();
+      try {
+        localStorage.setItem(key, value);
+      } catch (retryErr) {
+        console.error(`[Storage] Échec après nettoyage d'urgence:`, retryErr);
+      }
+    } else {
+      console.error(`[Storage] Erreur écriture "${key}":`, err);
+    }
+  }
+}
+
+/**
  * Récupère l'ensemble des candidats mockés depuis le localStorage (ou initialise la base).
  */
 export function getAllMockCandidates(): MockCandidateUser[] {
@@ -16,7 +95,7 @@ export function getAllMockCandidates(): MockCandidateUser[] {
   try {
     const raw = localStorage.getItem(STORAGE_USERS_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(INITIAL_MOCK_USERS));
+      safeSetLocalStorage(STORAGE_USERS_KEY, JSON.stringify(INITIAL_MOCK_USERS));
       return INITIAL_MOCK_USERS;
     }
     const parsed = JSON.parse(raw);
@@ -35,11 +114,8 @@ export function getAllMockCandidates(): MockCandidateUser[] {
  */
 export function saveAllMockCandidates(users: MockCandidateUser[]): void {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
-  } catch (err) {
-    console.error('Erreur sauvegarde candidats localStorage:', err);
-  }
+  const cleaned = users.map(sanitizeUserForStorage);
+  safeSetLocalStorage(STORAGE_USERS_KEY, JSON.stringify(cleaned));
 }
 
 /**
@@ -164,7 +240,8 @@ export function setStoredSession(user: MockCandidateUser | null): void {
   if (!user) {
     localStorage.removeItem(STORAGE_SESSION_KEY);
   } else {
-    localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
+    const cleanUser = sanitizeUserForStorage(user);
+    safeSetLocalStorage(STORAGE_SESSION_KEY, JSON.stringify(cleanUser));
   }
 }
 

@@ -226,10 +226,11 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
         console.warn('Webhook warning:', e)
       );
 
-      // 2. Mise à jour de la persistance locale (localStorage)
+      // 2. Mise à jour de la persistance locale (localStorage sans base64 volumineux)
+      const sanitizedPieces = piecesPayload.map((p) => ({ ...p, fichier_base64: '' }));
       const updatedUser = addComplementPiecesToDossier(
         user.id,
-        piecesPayload,
+        sanitizedPieces,
         candidateRemarks || 'Pièces complémentaires transmises par le candidat'
       );
 

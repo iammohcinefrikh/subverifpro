@@ -3,7 +3,7 @@ import type { MockCandidateUser } from '../../types/auth';
 import type { WebhookPiecePayload } from '../../types/webhook';
 import type { DocumentType } from '../../types/ocr';
 import { getDocumentTypeDefinition } from '../../config/documentTypes';
-import { processFileOcr, fileToBase64 } from '../../services/ocrService';
+import { processFileOcr } from '../../services/ocrService';
 import { addComplementPiecesToDossier } from '../../services/mockAuthService';
 import { saveComplianceCheckToDb } from '../../services/complianceCheckService';
 import { generateSyntheticDocument } from '../../services/syntheticDocumentGenerator';
@@ -50,7 +50,6 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
       setProcessingType(targetType);
       setSuccessNotice(null);
 
-      const base64 = await fileToBase64(file);
       const ocrResult = await processFileOcr(file);
 
       const newPiece: WebhookPiecePayload = {
@@ -59,7 +58,7 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
         type_suggere_ocr: ocrResult.type_suggere,
         texte_ocr: ocrResult.texte,
         champs_detectes: ocrResult.champs_detectes,
-        fichier_base64: base64,
+        fichier_base64: '', // Ne jamais stocker de gros base64 en localStorage
         statut_ocr: ocrResult.succes ? 'succes' : 'echec'
       };
 
