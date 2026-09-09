@@ -15,31 +15,59 @@ import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { DossierRowItem } from "@/lib/queries/dashboard"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Search01Icon,
-  FilterIcon,
   CheckmarkCircle02Icon,
   Cancel01Icon,
   AlertCircleIcon,
-  Clock01Icon,
   ArrowRight01Icon,
-  MoreHorizontalIcon,
-  EyeIcon,
-  CheckmarkBadge01Icon,
 } from "@hugeicons/core-free-icons"
 
 interface DossiersTableProps {
   dossiers: DossierRowItem[]
+  title: string
+  description: string
+  /** Show the client-side "statut" select — only meaningful for the "Tous les dossiers" view. */
+  showStatusFilter: boolean
 }
 
-export function DossiersTable({ dossiers }: DossiersTableProps) {
+const statusOptions: { value: string; label: string }[] = [
+  { value: "ALL", label: "Tous les statuts" },
+  { value: "SUBMITTED", label: "Reçu" },
+  { value: "A_VERIFIER", label: "À vérifier" },
+  { value: "COMPLET", label: "Complet" },
+  { value: "INCOMPLET", label: "Incomplet" },
+  { value: "COMPLEMENT_DEMANDE", label: "Complément demandé" },
+]
+
+const priorityOptions: { value: string; label: string }[] = [
+  { value: "ALL", label: "Toutes priorités" },
+  { value: "HAUTE", label: "Haute (Urgents)" },
+  { value: "MOYENNE", label: "Moyenne" },
+  { value: "BASSE", label: "Normale" },
+]
+
+const statusLabelByValue: Record<string, string> = Object.fromEntries(
+  statusOptions.map((o) => [o.value, o.label])
+)
+const priorityLabelByValue: Record<string, string> = Object.fromEntries(
+  priorityOptions.map((o) => [o.value, o.label])
+)
+
+export function DossiersTable({
+  dossiers,
+  title,
+  description,
+  showStatusFilter,
+}: DossiersTableProps) {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<string>("ALL")
   const [priorityFilter, setPriorityFilter] = React.useState<string>("ALL")
@@ -56,20 +84,33 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
         item.problemText.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchStatus =
-        statusFilter === "ALL" || item.status.toUpperCase() === statusFilter.toUpperCase()
+        !showStatusFilter || statusFilter === "ALL" || item.status.toUpperCase() === statusFilter.toUpperCase()
 
       const matchPriority =
         priorityFilter === "ALL" || item.priority.level === priorityFilter
 
       return matchSearch && matchStatus && matchPriority
     })
-  }, [dossiers, searchTerm, statusFilter, priorityFilter])
+  }, [dossiers, searchTerm, statusFilter, priorityFilter, showStatusFilter])
 
   const totalPages = Math.ceil(filteredDossiers.length / pageSize) || 1
   const paginatedDossiers = React.useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filteredDossiers.slice(start, start + pageSize)
   }, [filteredDossiers, currentPage])
+
+  const setSearch = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }
+  const setStatus = (value: string | null) => {
+    setStatusFilter(value ?? "ALL")
+    setCurrentPage(1)
+  }
+  const setPriority = (value: string | null) => {
+    setPriorityFilter(value ?? "ALL")
+    setCurrentPage(1)
+  }
 
   const renderStatusBadge = (status: string, label: string) => {
     switch (status.toUpperCase()) {
@@ -165,11 +206,18 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
   }
 
   return (
-    <div className="space-y-3" id="dossiers-table">
-      {/* Table Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-card">
-        <div className="flex items-center gap-2 flex-1 max-w-sm">
-          <div className="relative w-full">
+    <div className="space-y-24" id="dossiers-table">
+      {/* Header row: title on the left, search + filters on the right */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+            {title}
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+          <div className="relative w-full sm:w-64">
             <HugeiconsIcon
               icon={Search01Icon}
               size={14}
@@ -178,51 +226,38 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
             <Input
               placeholder="Rechercher par référence, demandeur..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setCurrentPage(1)
-              }}
+              onChange={(e) => setSearch(e.target.value)}
               className="h-8 pl-8 text-xs border-stone-300 dark:border-stone-700 w-full"
             />
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {/* Priority filter */}
-          <select
-            value={priorityFilter}
-            onChange={(e) => {
-              setPriorityFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="h-8 text-xs px-2.5 rounded-md border border-stone-300 dark:border-stone-700 bg-background text-stone-800 dark:text-stone-200"
-          >
-            <option value="ALL">Toutes priorités</option>
-            <option value="HAUTE">Haute (Urgents)</option>
-            <option value="MOYENNE">Moyenne</option>
-            <option value="BASSE">Normale</option>
-          </select>
+          <Select value={priorityFilter} onValueChange={setPriority}>
+            <SelectTrigger className="justify-between">
+              <SelectValue>{(v) => priorityLabelByValue[v as string] ?? ""}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {priorityOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="h-8 text-xs px-2.5 rounded-md border border-stone-300 dark:border-stone-700 bg-background text-stone-800 dark:text-stone-200"
-          >
-            <option value="ALL">Tous les statuts</option>
-            <option value="SUBMITTED">Reçu</option>
-            <option value="A_VERIFIER">À vérifier</option>
-            <option value="COMPLET">Complet</option>
-            <option value="INCOMPLET">Incomplet</option>
-            <option value="COMPLEMENT_DEMANDE">Complément demandé</option>
-          </select>
-
-          <span className="text-xs text-muted-foreground font-mono pl-1">
-            {filteredDossiers.length} résultat{filteredDossiers.length > 1 ? "s" : ""}
-          </span>
+          {showStatusFilter && (
+            <Select value={statusFilter} onValueChange={setStatus}>
+              <SelectTrigger className="justify-between">
+                <SelectValue>{(v) => statusLabelByValue[v as string] ?? ""}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
@@ -231,7 +266,7 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
         <Table>
           <TableHeader className="bg-stone-50/80 dark:bg-stone-900/50">
             <TableRow className="hover:bg-transparent border-b border-stone-200 dark:border-stone-800 text-[11px] font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wider">
-              <TableHead className="w-[120px] py-2.5">Dossier</TableHead>
+              <TableHead className="w-[120px] pl-3 py-2.5">Dossier</TableHead>
               <TableHead className="min-w-[150px] py-2.5">Demandeur</TableHead>
               <TableHead className="w-[130px] py-2.5">Statut</TableHead>
               <TableHead className="w-[140px] py-2.5">Complétude</TableHead>
@@ -239,7 +274,7 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
               <TableHead className="min-w-[180px] py-2.5">Problème / Alerte</TableHead>
               <TableHead className="w-[100px] py-2.5 text-center">Échéance</TableHead>
               <TableHead className="w-[90px] py-2.5 text-center">Priorité</TableHead>
-              <TableHead className="w-[45px] py-2.5 text-right"></TableHead>
+              <TableHead className="w-[45px] pr-3 py-2.5 text-right"></TableHead>
             </TableRow>
           </TableHeader>
 
@@ -257,7 +292,7 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
                   className="group hover:bg-stone-50/80 dark:hover:bg-stone-900/40 border-b border-stone-200/70 dark:border-stone-800/70 transition-colors"
                 >
                   {/* Dossier Ref */}
-                  <TableCell className="font-mono text-xs font-semibold py-3">
+                  <TableCell className="font-mono text-xs font-semibold py-3 pl-3">
                     <Link
                       href={`/dashboard/dossiers/${item.applicationId}`}
                       className="text-stone-900 dark:text-stone-100 hover:text-primary hover:underline underline-offset-2 flex items-center gap-1 group-hover:text-primary transition-colors"
@@ -331,7 +366,7 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
                   </TableCell>
 
                   {/* Actions */}
-                  <TableCell className="py-3 text-right">
+                  <TableCell className="py-3 pr-3 text-right">
                     <Button
                       asChild
                       variant="ghost"
@@ -353,7 +388,7 @@ export function DossiersTable({ dossiers }: DossiersTableProps) {
         {/* Pagination Footer */}
         <div className="flex items-center justify-between p-3 border-t border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-900/30 text-xs text-muted-foreground">
           <span className="font-mono">
-            Page {currentPage} sur {totalPages} ({filteredDossiers.length} dossiers)
+            Page {currentPage} sur {totalPages} ({filteredDossiers.length} {filteredDossiers.length > 1 ? "dossiers" : "dossier"})
           </span>
 
           <div className="flex items-center gap-1.5">

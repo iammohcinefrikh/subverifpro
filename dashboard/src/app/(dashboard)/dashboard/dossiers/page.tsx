@@ -41,20 +41,14 @@ export default async function DossiersPage({
     : "Vue consolidée de l'ensemble des dossiers de subvention."
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-            {title}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        </div>
-        <span className="text-xs text-muted-foreground font-mono">
-          {dossiers.length} dossier{dossiers.length > 1 ? "s" : ""}
-        </span>
-      </div>
-
-      <DossiersTable dossiers={dossiers} />
+    <div className="space-y-4">
+      <DossiersTable
+        dossiers={dossiers}
+        title={title}
+        description={description}
+        // Filtering by status client-side only makes sense on the consolidated view.
+        showStatusFilter={!type}
+      />
     </div>
   )
 }

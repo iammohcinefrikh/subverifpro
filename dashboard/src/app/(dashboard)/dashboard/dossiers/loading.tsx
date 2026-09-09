@@ -2,22 +2,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DossiersListLoading() {
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+    <div className="space-y-24">
+      {/* Header row: title/tagline on the left, search + filters on the right */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div className="space-y-1.5">
-          <Skeleton className="h-7 w-56 rounded-md bg-stone-200/80 dark:bg-stone-800" />
-          <Skeleton className="h-4 w-80 rounded bg-stone-200/60 dark:bg-stone-850" />
+          <Skeleton className="h-6 w-56 rounded-md bg-stone-200/80 dark:bg-stone-800" />
+          <Skeleton className="h-3.5 w-80 rounded bg-stone-200/60 dark:bg-stone-850" />
         </div>
-        <Skeleton className="h-4 w-16 rounded bg-stone-200/60 dark:bg-stone-850" />
-      </div>
-
-      {/* Table Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-card shadow-xs">
-        <Skeleton className="h-8 w-full sm:w-64 rounded-md bg-stone-200/80 dark:bg-stone-800" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-32 rounded-md bg-stone-200/80 dark:bg-stone-800" />
-          <Skeleton className="h-8 w-32 rounded-md bg-stone-200/80 dark:bg-stone-800" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+          <Skeleton className="h-8 w-full sm:w-64 rounded-md bg-stone-200/80 dark:bg-stone-800" />
+          <Skeleton className="h-8 w-40 rounded-md bg-stone-200/80 dark:bg-stone-800" />
+          <Skeleton className="h-8 w-40 rounded-md bg-stone-200/80 dark:bg-stone-800" />
         </div>
       </div>
 
