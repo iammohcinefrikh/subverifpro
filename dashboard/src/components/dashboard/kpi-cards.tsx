@@ -72,7 +72,7 @@ export function KpiCards({ kpis }: KpiCardsProps) {
       {cards.map((card) => (
         <Card
           key={card.title}
-          className={`h-[96px] p-3 border shadow-xs transition-all hover:border-stone-300 dark:hover:border-stone-700 ${card.border}`}
+          className={`h-24 p-3 border shadow-xs transition-all hover:border-stone-300 dark:hover:border-stone-700 ${card.border}`}
         >
           <CardContent className="p-0 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between gap-1">

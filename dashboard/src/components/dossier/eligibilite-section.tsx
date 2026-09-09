@@ -5,8 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   CheckmarkCircle02Icon,
   Cancel01Icon,
-  AlertCircleIcon,
-  Search01Icon,
+  AlertCircleIcon
 } from "@hugeicons/core-free-icons"
 
 interface EligibiliteSectionProps {
@@ -68,7 +67,7 @@ export function EligibiliteSection({ eligibility }: EligibiliteSectionProps) {
             Évaluation détaillée des critères
           </h4>
 
-          <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-65 overflow-y-auto pr-1">
             {eligibility.checks.length === 0 ? (
               <div className="text-center py-4 text-xs text-muted-foreground">
                 Aucun critère spécifique évalué pour ce dossier.

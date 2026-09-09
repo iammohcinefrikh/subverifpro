@@ -7,8 +7,7 @@ import {
   FileValidationIcon,
   CheckmarkCircle02Icon,
   Cancel01Icon,
-  AlertCircleIcon,
-  File01Icon,
+  AlertCircleIcon
 } from "@hugeicons/core-free-icons"
 
 interface CompletudeSectionProps {
@@ -73,7 +72,7 @@ export function CompletudeSection({ compliance }: CompletudeSectionProps) {
             Inventaire des pièces
           </h4>
 
-          <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-65 overflow-y-auto pr-1">
             {/* Missing Documents */}
             {compliance.missingDocuments.map((doc, idx) => (
               <div

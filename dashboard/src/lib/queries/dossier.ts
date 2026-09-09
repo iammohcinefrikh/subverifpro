@@ -149,27 +149,73 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
       eligibilityResult: elig?.result,
     })
 
+    // Build a lookup (document_type -> canonical name) from the program's
+    // requirements so documents recorded by their short code (e.g. "rib") can
+    // be displayed with their full label (e.g. "Relevé d'identité bancaire").
+    const requirementLabels = new Map<string, string>()
+    const programRequirements = app.program?.requirements
+    if (Array.isArray(programRequirements)) {
+      for (const item of programRequirements) {
+        if (item && typeof item === "object") {
+          const req = item as Record<string, unknown>
+          if (req.document_type && req.name) {
+            requirementLabels.set(String(req.document_type), String(req.name))
+          }
+        }
+      }
+    }
+
+    // Resolves the document_type/type key of an item regardless of its shape
+    // (compliance documents are stored either as a bare string key or as an
+    // object carrying `document_type` / `type`).
+    const docKey = (d: unknown): string | undefined => {
+      if (typeof d === "string") return d
+      if (d && typeof d === "object" && !Array.isArray(d)) {
+        const rec = d as Record<string, unknown>
+        for (const field of ["document_type", "type", "name"]) {
+          const value = rec[field]
+          if (typeof value === "string" && value) return value
+        }
+      }
+      return undefined
+    }
+
     // Parse JSON documents safely
     const presentDocs = Array.isArray(comp?.presentDocuments)
-      ? (comp.presentDocuments as any[]).map((d) => ({
-          name: typeof d === "string" ? d : d.name || d.label || "Document",
-          url: typeof d === "object" ? d.url : undefined,
-          date: typeof d === "object" ? d.date : undefined,
-        }))
+      ? (comp.presentDocuments as any[]).map((d) => {
+          const obj = d && typeof d === "object"
+          const code = docKey(d)
+          const label = code && requirementLabels.get(code)
+          return {
+            name: label ?? (obj ? d.name || d.label || "Document" : String(d)),
+            url: obj ? d.url : undefined,
+            date: obj ? d.date : undefined,
+          }
+        })
       : []
 
     const missingDocs = Array.isArray(comp?.missingDocuments)
-      ? (comp.missingDocuments as any[]).map((d) => ({
-          name: typeof d === "string" ? d : d.name || d.label || "Document manquant",
-          type: typeof d === "object" ? d.type : undefined,
-        }))
+      ? (comp.missingDocuments as any[]).map((d) => {
+          const obj = d && typeof d === "object"
+          const code = docKey(d)
+          const label = code && requirementLabels.get(code)
+          return {
+            name: label ?? (obj ? d.name || d.label || "Document manquant" : String(d)),
+            type: obj ? d.type : undefined,
+          }
+        })
       : []
 
     const expiredDocs = Array.isArray(comp?.expiredDocuments)
-      ? (comp.expiredDocuments as any[]).map((d) => ({
-          name: typeof d === "string" ? d : d.name || d.label || "Document expiré",
-          expiredDate: typeof d === "object" ? d.expiredDate : undefined,
-        }))
+      ? (comp.expiredDocuments as any[]).map((d) => {
+          const obj = d && typeof d === "object"
+          const code = docKey(d)
+          const label = code && requirementLabels.get(code)
+          return {
+            name: label ?? (obj ? d.name || d.label || "Document expiré" : String(d)),
+            expiredDate: obj ? d.expiredDate : undefined,
+          }
+        })
       : []
 
     // Map eligibility checks with criterion labels

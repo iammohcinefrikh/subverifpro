@@ -13,7 +13,7 @@ export default function DashboardLoading() {
       {/* Top 6 KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i} className="h-[96px] p-3 border border-stone-200 dark:border-stone-800 shadow-xs">
+          <Card key={i} className="h-24 p-3 border border-stone-200 dark:border-stone-800 shadow-xs">
             <CardContent className="p-0 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-3 w-24 rounded bg-stone-200/80 dark:bg-stone-800" />
@@ -28,7 +28,7 @@ export default function DashboardLoading() {
       {/* Middle Grid: 4 Cards (3 Charts + 1 Deadlines list) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Status Distribution Skeleton */}
-        <Card className="h-[320px] p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
+        <Card className="h-80 p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-stone-800">
             <Skeleton className="h-4 w-32 rounded bg-stone-200 dark:bg-stone-800" />
             <Skeleton className="h-3 w-16 rounded bg-stone-200/60 dark:bg-stone-850" />
@@ -47,7 +47,7 @@ export default function DashboardLoading() {
         </Card>
 
         {/* Completeness Distribution Skeleton */}
-        <Card className="h-[320px] p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
+        <Card className="h-80 p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-stone-800">
             <Skeleton className="h-4 w-40 rounded bg-stone-200 dark:bg-stone-800" />
             <Skeleton className="h-3 w-16 rounded bg-stone-200/60 dark:bg-stone-850" />
@@ -66,7 +66,7 @@ export default function DashboardLoading() {
         </Card>
 
         {/* Eligibility Distribution Skeleton */}
-        <Card className="h-[320px] p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
+        <Card className="h-80 p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-stone-800">
             <Skeleton className="h-4 w-36 rounded bg-stone-200 dark:bg-stone-800" />
             <Skeleton className="h-3 w-16 rounded bg-stone-200/60 dark:bg-stone-850" />
@@ -85,7 +85,7 @@ export default function DashboardLoading() {
         </Card>
 
         {/* Deadlines List Skeleton */}
-        <Card className="h-[320px] p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
+        <Card className="h-80 p-4 border border-stone-200 dark:border-stone-800 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-stone-800">
             <Skeleton className="h-4 w-32 rounded bg-stone-200 dark:bg-stone-800" />
             <Skeleton className="h-3 w-12 rounded bg-stone-200/60 dark:bg-stone-850" />

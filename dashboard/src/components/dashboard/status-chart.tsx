@@ -10,7 +10,7 @@ export function StatusChart({ data, total }: StatusChartProps) {
   const safeTotal = total > 0 ? total : 1
 
   return (
-    <Card className="h-[320px] p-4 flex flex-col justify-between border border-stone-200 dark:border-stone-800 shadow-xs">
+    <Card className="h-80 p-4 flex flex-col justify-between border border-stone-200 dark:border-stone-800 shadow-xs">
       <CardHeader className="p-0 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold tracking-tight text-stone-900 dark:text-stone-100">

@@ -266,15 +266,15 @@ export function DossiersTable({
         <Table>
           <TableHeader className="bg-stone-50/80 dark:bg-stone-900/50">
             <TableRow className="hover:bg-transparent border-b border-stone-200 dark:border-stone-800 text-[11px] font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wider">
-              <TableHead className="w-[120px] pl-3 py-2.5">Dossier</TableHead>
-              <TableHead className="min-w-[150px] py-2.5">Demandeur</TableHead>
-              <TableHead className="w-[130px] py-2.5">Statut</TableHead>
-              <TableHead className="w-[140px] py-2.5">Complétude</TableHead>
-              <TableHead className="w-[130px] py-2.5">Éligibilité</TableHead>
-              <TableHead className="min-w-[180px] py-2.5">Problème / Alerte</TableHead>
-              <TableHead className="w-[100px] py-2.5 text-center">Échéance</TableHead>
-              <TableHead className="w-[90px] py-2.5 text-center">Priorité</TableHead>
-              <TableHead className="w-[45px] pr-3 py-2.5 text-right"></TableHead>
+              <TableHead className="w-30 pl-3 py-2.5">Dossier</TableHead>
+              <TableHead className="min-w-37.5 py-2.5">Demandeur</TableHead>
+              <TableHead className="w-32.5 py-2.5">Statut</TableHead>
+              <TableHead className="w-35 py-2.5">Complétude</TableHead>
+              <TableHead className="w-32.5 py-2.5">Éligibilité</TableHead>
+              <TableHead className="min-w-45 py-2.5">Problème / Alerte</TableHead>
+              <TableHead className="w-25 py-2.5 text-center">Échéance</TableHead>
+              <TableHead className="w-22.5 py-2.5 text-center">Priorité</TableHead>
+              <TableHead className="w-11.25 pr-3 py-2.5 text-right"></TableHead>
             </TableRow>
           </TableHeader>
 
