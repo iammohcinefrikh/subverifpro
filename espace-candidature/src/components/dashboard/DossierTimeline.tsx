@@ -1,78 +1,118 @@
 import React from 'react';
 import type { DossierStatus } from '../../types/auth';
-import { CheckCircle2, Clock, AlertTriangle, XCircle } from 'lucide-react';
+import type { ComplianceCheck } from '../../services/complianceCheckService';
+import { Check, AlertTriangle, XCircle, Award } from 'lucide-react';
+import { KhatemSeal, useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 interface DossierTimelineProps {
   statut: DossierStatus;
   dateSoumission: string;
   decisionDate?: string;
+  complianceCheck?: ComplianceCheck | null;
 }
 
 export const DossierTimeline: React.FC<DossierTimelineProps> = ({
   statut,
   dateSoumission,
-  decisionDate
+  decisionDate,
+  complianceCheck,
 }) => {
-  // Mapping des 4 jalons
-  // Étape 1 : Dossier déposé (toujours validé si le dossier existe)
-  // Étape 2 : Vérification des pièces (si 'documents_manquants', bloqué/alerte ici. Si 'en_cours_examen' ou au-delà, validé)
-  // Étape 3 : Examen & Instruction (si 'en_cours_examen', en cours. Si 'valide' ou 'refuse', validé)
-  // Étape 4 : Décision finale (accordé ou refusé)
+  const { primaryColor } = useMoroccanTheme();
+
+  // Date de soumission formatée (ex : 09 septembre 2026)
+  const formattedDateSoumission = new Date(dateSoumission).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Date de vérification des pièces
+  const verificationDateRaw =
+    complianceCheck?.checked_at || complianceCheck?.updated_at || complianceCheck?.created_at || dateSoumission;
+  const formattedDateVerification = new Date(verificationDateRaw).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Statut de vérification des pièces normalisé (supporte 'completed', 'COMPLETED', 'CONFORME', 'VALIDATED', etc.)
+  const complianceStatusUpper = (complianceCheck?.status || '').toUpperCase().trim();
+  const isComplianceCompleted = Boolean(
+    ['COMPLETED', 'COMPLETE', 'CONFORME', 'VALIDATED', 'VALIDE', 'VERIFIE', 'VERIFIÉ'].includes(complianceStatusUpper) ||
+    (complianceCheck?.completeness_rate !== undefined && Number(complianceCheck.completeness_rate) >= 100) ||
+    (complianceCheck && complianceCheck.missing_count === 0 && (complianceCheck.present_count || 0) > 0) ||
+    statut === 'en_cours_examen' ||
+    statut === 'valide'
+  );
+
+  const isComplianceIncomplete = Boolean(
+    complianceCheck &&
+    !isComplianceCompleted &&
+    (
+      ['INCOMPLETE', 'NON_CONFORME', 'MANQUANT'].includes(complianceStatusUpper) ||
+      complianceCheck.missing_count > 0 ||
+      (complianceCheck.completeness_rate !== undefined && Number(complianceCheck.completeness_rate) < 100)
+    )
+  );
 
   const steps = [
     {
       id: 1,
       name: 'Dépôt du dossier',
-      detail: new Date(dateSoumission).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      }),
+      detail: formattedDateSoumission,
       state: 'done' as const
     },
     {
       id: 2,
       name: 'Vérification des pièces',
-      detail:
-        statut === 'documents_manquants'
-          ? 'Pièces manquantes à fournir'
-          : statut === 'en_attente'
-          ? 'En attente d\'attribution'
-          : 'Pièces conformes',
-      state:
-        statut === 'documents_manquants'
-          ? ('warning' as const)
-          : statut === 'en_attente'
-          ? ('active' as const)
-          : ('done' as const)
+      detail: isComplianceCompleted
+        ? `Vérifié le ${formattedDateVerification}`
+        : isComplianceIncomplete
+        ? `${complianceCheck?.missing_count || 'Pièces'} manquante(s) à régulariser`
+        : complianceCheck?.status
+        ? `Contrôle de conformité : ${complianceCheck.status}`
+        : statut === 'documents_manquants'
+        ? 'Compléments requis à régulariser'
+        : 'En attente d’attribution',
+      state: isComplianceCompleted
+        ? ('done' as const)
+        : isComplianceIncomplete || statut === 'documents_manquants'
+        ? ('warning' as const)
+        : complianceStatusUpper === 'NON_CONFORME'
+        ? ('danger' as const)
+        : ('active' as const)
     },
     {
       id: 3,
       name: 'Instruction & Examen',
       detail:
         statut === 'en_cours_examen'
-          ? 'Examen par la commission'
+          ? 'Examen approfondi par la commission'
           : statut === 'valide' || statut === 'refuse'
           ? 'Instruction finalisée'
-          : 'À venir',
+          : isComplianceCompleted
+          ? 'En attente d’instruction par la commission'
+          : 'Phase à venir',
       state:
         statut === 'en_cours_examen'
           ? ('active' as const)
           : statut === 'valide' || statut === 'refuse'
           ? ('done' as const)
+          : isComplianceCompleted
+          ? ('active' as const)
           : ('upcoming' as const)
     },
     {
       id: 4,
-      name: 'Décision finale',
+      name: 'Décision de la commission (Place centrale)',
       detail:
         statut === 'valide'
           ? decisionDate
-            ? `Accordé le ${new Date(decisionDate).toLocaleDateString('fr-FR')}`
-            : 'Subvention octroyée'
+            ? `Subvention accordée le ${new Date(decisionDate).toLocaleDateString('fr-FR')}`
+            : 'Subvention d’État octroyée'
           : statut === 'refuse'
-          ? 'Non retenu'
-          : 'Notification finale',
+          ? 'Dossier non retenu'
+          : 'Notification finale officielle',
       state:
         statut === 'valide'
           ? ('success' as const)
@@ -83,63 +123,68 @@ export const DossierTimeline: React.FC<DossierTimelineProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-card space-y-6 text-left">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+    <div className="bg-sand-50 rounded-2xl border border-sand-300 p-6 shadow-card space-y-6 text-left relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sand-200 pb-4">
         <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-brand-600" />
-            Progression de l'instruction
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Suivi des jalons administratifs et techniques de votre demande.
+          <div className="flex items-center gap-2">
+            <KhatemSeal size={18} strokeWidth={1.5} />
+            <h2 className="text-base font-bold text-indigo-950 font-display sm:text-lg">
+              Progression de l’Instruction
+            </h2>
+          </div>
+          <p className="text-xs text-ink-800/80 font-medium mt-0.5">
+            Fil conducteur officiel menant de la vérification préalable à la commission d'octroi.
           </p>
         </div>
       </div>
 
-      {/* Stepper Timeline Bar */}
+      {/* Ruelle de Médina : Parcours menant à la décision centrale */}
       <div className="relative">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
-          {/* Background progress bar connector on desktop */}
-          <div className="hidden sm:block absolute top-4 left-6 right-6 h-0.5 bg-slate-200 -z-0" />
+          {/* Ligne directrice en cuivre/sable */}
+          <div className="hidden sm:block absolute top-5 left-8 right-8 h-0.5 bg-sand-300 -z-0" />
 
           {steps.map((s) => (
             <div key={s.id} className="relative z-10 flex flex-col sm:items-center text-left sm:text-center space-y-2">
-              {/* Step Circle */}
               <div className="flex items-center gap-3 sm:flex-col sm:gap-2">
+                {/* Pastille Zellige émaillée */}
                 {s.state === 'done' && (
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-                    <CheckCircle2 className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-lg rotate-45 bg-emerald-700 text-white flex items-center justify-center shadow-zellige">
+                    <Check className="w-5 h-5 text-gold-200 -rotate-45 stroke-[3]" />
                   </div>
                 )}
                 {s.state === 'warning' && (
-                  <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center animate-bounce shadow-md shadow-amber-200">
-                    <AlertTriangle className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-xl bg-gold-500 text-white flex items-center justify-center animate-bounce shadow-md shadow-gold-900/20">
+                    <AlertTriangle className="w-5 h-5" />
                   </div>
                 )}
                 {s.state === 'active' && (
-                  <div className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center ring-4 ring-brand-100 shadow-sm">
-                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+                  <div
+                    className="w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-md ring-4 ring-gold-200/80"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <span className="w-3 h-3 rounded-full bg-white animate-pulse" />
                   </div>
                 )}
                 {s.state === 'success' && (
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center ring-4 ring-emerald-100 shadow-md">
-                    <CheckCircle2 className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-md ring-4 ring-emerald-200">
+                    <Award className="w-5 h-5 text-gold-300" />
                   </div>
                 )}
                 {s.state === 'danger' && (
-                  <div className="w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md">
-                    <XCircle className="w-4 h-4" />
+                  <div className="w-10 h-10 rounded-xl bg-rose-700 text-white flex items-center justify-center shadow-md">
+                    <XCircle className="w-5 h-5" />
                   </div>
                 )}
                 {s.state === 'upcoming' && (
-                  <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center text-xs font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-sand-300 text-sand-400 flex items-center justify-center text-xs font-bold">
                     {s.id}
                   </div>
                 )}
 
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900">{s.name}</h3>
-                  <p className="text-[11px] text-slate-500">{s.detail}</p>
+                <div className="pt-1">
+                  <h3 className="text-xs font-bold text-indigo-950">{s.name}</h3>
+                  <p className="text-[11px] text-ink-800/80 font-medium mt-0.5">{s.detail}</p>
                 </div>
               </div>
             </div>

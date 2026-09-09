@@ -108,7 +108,7 @@ export const Step5Summary: React.FC<Step5Props> = ({
   };
 
   return (
-    <form onSubmit={handleFormSubmit} noValidate className="space-y-8 text-left">
+    <form id="wizard-active-form" onSubmit={handleFormSubmit} noValidate className="space-y-8 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
@@ -272,7 +272,7 @@ export const Step5Summary: React.FC<Step5Props> = ({
                     {selectedProgram.status === 'ACTIVE' ? 'Programme Actif' : 'Historique'}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-500">
-                    • Plafond : {selectedProgram.plafond_indicatif.toLocaleString('fr-FR')} DH
+                    • Plafond : {selectedProgram.plafond_indicatif.toLocaleString('fr-FR')} MAD
                   </span>
                 </>
               )}
@@ -321,13 +321,13 @@ export const Step5Summary: React.FC<Step5Props> = ({
           <div>
             <span className="text-slate-500 block">Coût total du projet :</span>
             <span className="text-base font-extrabold text-slate-900">
-              {dossier.budget.montant_total.toLocaleString('fr-FR')} DH
+              {dossier.budget.montant_total.toLocaleString('fr-FR')} MAD
             </span>
           </div>
           <div>
             <span className="text-brand-700 block font-semibold">Subvention demandée :</span>
             <span className="text-base font-extrabold text-brand-700">
-              {dossier.budget.montant_demande.toLocaleString('fr-FR')} DH
+              {dossier.budget.montant_demande.toLocaleString('fr-FR')} MAD
             </span>
             <span className="text-[11px] text-slate-500 block mt-0.5">
               Soit {Math.round((dossier.budget.montant_demande / dossier.budget.montant_total) * 100)}% de couverture publique sollicitée
@@ -344,7 +344,7 @@ export const Step5Summary: React.FC<Step5Props> = ({
               {dossier.budget.depenses.map((d) => (
                 <li key={d.id} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100 shadow-subtle">
                   <span className="truncate pr-2">{d.libelle}</span>
-                  <span className="font-semibold text-slate-900 shrink-0">{d.montant.toLocaleString('fr-FR')} DH</span>
+                  <span className="font-semibold text-slate-900 shrink-0">{d.montant.toLocaleString('fr-FR')} MAD</span>
                 </li>
               ))}
             </ul>
@@ -361,7 +361,7 @@ export const Step5Summary: React.FC<Step5Props> = ({
                     <span>{f.financeur}</span>
                     <span className="text-[10px] text-slate-400 ml-1.5 capitalize">({f.statut})</span>
                   </div>
-                  <span className="font-semibold text-slate-900 shrink-0">{f.montant.toLocaleString('fr-FR')} DH</span>
+                  <span className="font-semibold text-slate-900 shrink-0">{f.montant.toLocaleString('fr-FR')} MAD</span>
                 </li>
               ))}
             </ul>

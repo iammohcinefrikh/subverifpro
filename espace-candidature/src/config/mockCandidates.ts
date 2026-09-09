@@ -101,7 +101,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '8492019',
-        cotisations: '45 000,00 DH'
+        cotisations: '45 000,00 MAD'
       }
     }
   },
@@ -168,7 +168,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '6741289',
-        cotisations: '18 500,00 DH'
+        cotisations: '18 500,00 MAD'
       }
     }
   },
@@ -235,7 +235,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '9128304',
-        cotisations: '32 400,00 DH'
+        cotisations: '32 400,00 MAD'
       }
     }
   },
@@ -302,7 +302,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '5566778',
-        cotisations: '24 800,00 DH'
+        cotisations: '24 800,00 MAD'
       }
     }
   },
@@ -369,7 +369,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '7788990',
-        cotisations: '41 200,00 DH'
+        cotisations: '41 200,00 MAD'
       }
     }
   },
@@ -436,7 +436,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '4455661',
-        cotisations: '12 800,00 DH'
+        cotisations: '12 800,00 MAD'
       }
     }
   },
@@ -503,7 +503,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '9988112',
-        cotisations: '68 400,00 DH'
+        cotisations: '68 400,00 MAD'
       }
     }
   },
@@ -570,7 +570,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '3344552',
-        cotisations: '4 200,00 DH'
+        cotisations: '4 200,00 MAD'
       }
     }
   },
@@ -637,7 +637,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '8899001',
-        cotisations: '29 500,00 DH'
+        cotisations: '29 500,00 MAD'
       }
     }
   },
@@ -704,7 +704,7 @@ const CORE_10_CANDIDATES: MockCandidate[] = [
       },
       cnss: {
         numAffiliation: '6677884',
-        cotisations: '58 000,00 DH'
+        cotisations: '58 000,00 MAD'
       }
     }
   }
@@ -1008,7 +1008,7 @@ const GENERATED_90_CANDIDATES: MockCandidate[] = Array.from({ length: 90 }, (_, 
       },
       cnss: {
         numAffiliation: ((candIndex * 654321) % 8999999 + 1000000).toString(),
-        cotisations: `${((candIndex * 2450) % 65000 + 15000).toLocaleString('fr-FR')},00 DH`
+        cotisations: `${((candIndex * 2450) % 65000 + 15000).toLocaleString('fr-FR')},00 MAD`
       }
     }
   };

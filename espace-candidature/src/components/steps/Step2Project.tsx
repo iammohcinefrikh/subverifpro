@@ -53,7 +53,7 @@ export const Step2Project: React.FC<Step2Props> = ({ initialData, onNext, onPrev
   }));
 
   return (
-    <form onSubmit={handleSubmit(onNext)} noValidate className="space-y-8 text-left">
+    <form id="wizard-active-form" onSubmit={handleSubmit(onNext)} noValidate className="space-y-8 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
@@ -113,7 +113,7 @@ export const Step2Project: React.FC<Step2Props> = ({ initialData, onNext, onPrev
                   {selectedProg.status === 'ACTIVE' ? 'Programme Actif' : 'Éditions Clôturées (Historique)'}
                 </span>
                 <span className="font-bold text-brand-900 text-xs">
-                  Plafond : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} DH
+                  Plafond : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} MAD
                 </span>
               </div>
             </div>

@@ -3,12 +3,41 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --primary-color: #C1440E;
+    --primary-dark: #8F3209;
+    --secondary-color: #0E5E4B;
+    --accent-color: #C9962E;
+    --surface-sand: #FAF5EC;
+    --surface-sand-deep: #F1E7D3;
+    --text-ink: #241B14;
+    --text-indigo: #1A2B4C;
+  }
+
+  [data-theme="fes"] {
+    --primary-color: #1E4F8C;
+    --primary-dark: #123056;
+    --secondary-color: #0E5E4B;
+    --accent-color: #C9962E;
+    --surface-sand: #F7F9FC;
+    --surface-sand-deep: #EAF0F8;
+    --text-ink: #171E2B;
+    --text-indigo: #0F1B2E;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 min-h-screen antialiased;
+    background-color: var(--surface-sand);
+    color: var(--text-ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .font-display {
+    letter-spacing: -0.015em;
   }
 }
 
-/* Print styles for submission confirmation receipt */
+/* Print styles for official receipt */
 @media print {
   body {
     background: white !important;
@@ -25,22 +54,22 @@
   }
 }
 
-/* Custom Scrollbar for OCR preview */
+/* Custom Scrollbar inspired by hammered copper and clay */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #F1E7D3;
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #D4C097;
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #C9962E;
 }

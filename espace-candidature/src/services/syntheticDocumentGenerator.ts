@@ -157,7 +157,7 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Forme juridique : Société à Responsabilité Limitée (SARL)`, 50, 245);
       ctx.fillText(`Siège social : ${cand.demandeur.adresse}, ${cand.demandeur.ville} (${cand.demandeur.code_postal})`, 50, 275);
       ctx.fillText(`Activité / Objet social : ${cand.demandeur.secteur_activite}`, 50, 305);
-      ctx.fillText(`Capital social : 100 000,00 DH entièrement souscrit et libéré`, 50, 335);
+      ctx.fillText(`Capital social : 100 000,00 MAD entièrement souscrit et libéré`, 50, 335);
       ctx.fillText(`Gérant statutaire : M./Mme ${cand.demandeur.prenom_representant} ${cand.demandeur.nom_representant} (CIN: ${cand.demandeur.cin_representant})`, 50, 365);
       ctx.fillText(`Date d'immatriculation : 10/01/2020 - Statut : Actif en situation régulière`, 50, 395);
 
@@ -177,7 +177,7 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Article 1 - Forme : Société commerciale régie par la législation marocaine en vigueur`, 50, 185);
       ctx.fillText(`Article 2 - Objet social : ${cand.demandeur.secteur_activite}`, 50, 215);
       ctx.fillText(`Article 3 - Siège social : ${cand.demandeur.adresse}, ${cand.demandeur.ville}`, 50, 245);
-      ctx.fillText(`Article 4 - Capital social : 100 000 DH divisé en 1 000 parts sociales de 100 DH`, 50, 275);
+      ctx.fillText(`Article 4 - Capital social : 100 000 MAD divisé en 1 000 parts sociales de 100 MAD`, 50, 275);
       ctx.fillText(`Article 5 - Gérance : ${cand.demandeur.prenom_representant} ${cand.demandeur.nom_representant} nommé gérant unique avec pleins pouvoirs`, 50, 305);
       ctx.fillText(`Article 6 - Identifiant légal : ICE ${cand.demandeur.siret}`, 50, 335);
       ctx.fillText(`Enregistrement fiscal : DGI ${cand.demandeur.ville} sous bordereau n° 2026/894-A`, 50, 365);
@@ -243,11 +243,11 @@ export async function generateSyntheticDocument(
 
       ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
       ctx.fillStyle = '#78350f';
-      ctx.fillText(`TOTAL HT  : ${cand.syntheticDocs.devis.totalHT.toLocaleString('fr-FR')} DH`, 80, 325);
-      ctx.fillText(`TVA (20%) : ${cand.syntheticDocs.devis.tva.toLocaleString('fr-FR')} DH`, 80, 355);
+      ctx.fillText(`TOTAL HT  : ${cand.syntheticDocs.devis.totalHT.toLocaleString('fr-FR')} MAD`, 80, 325);
+      ctx.fillText(`TVA (20%) : ${cand.syntheticDocs.devis.tva.toLocaleString('fr-FR')} MAD`, 80, 355);
       ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
       ctx.fillStyle = '#b45309';
-      ctx.fillText(`TOTAL TTC : ${cand.syntheticDocs.devis.totalTTC.toLocaleString('fr-FR')} DH`, 80, 388);
+      ctx.fillText(`TOTAL TTC : ${cand.syntheticDocs.devis.totalTTC.toLocaleString('fr-FR')} MAD`, 80, 388);
 
       drawFooter(ctx, cand.demandeur.ville, "Direction Commerciale Fournisseur Agréé");
       break;
@@ -263,10 +263,10 @@ export async function generateSyntheticDocument(
 
       ctx.font = '13px "Segoe UI", Arial, sans-serif';
       ctx.fillText(`Identifiant Fiscal (IF) : 3892014   |   ICE : ${cand.demandeur.siret}   |   Taxe Pro : 24901842`, 50, 175);
-      ctx.fillText(`Chiffre d'Affaires Net HT déclaré : 2 450 000,00 DH`, 50, 205);
-      ctx.fillText(`Compte de Produits et Charges (CPC) - Produits d'exploitation : 2 450 000 DH`, 50, 235);
-      ctx.fillText(`Charges d'exploitation : 1 890 000 DH   |   Résultat Net Comptable : +340 000 DH`, 50, 265);
-      ctx.fillText(`Cotisation Minimale / Impôt sur les Sociétés (IS) acquitté : 78 500,00 DH`, 50, 295);
+      ctx.fillText(`Chiffre d'Affaires Net HT déclaré : 2 450 000,00 MAD`, 50, 205);
+      ctx.fillText(`Compte de Produits et Charges (CPC) - Produits d'exploitation : 2 450 000 MAD`, 50, 235);
+      ctx.fillText(`Charges d'exploitation : 1 890 000 MAD   |   Résultat Net Comptable : +340 000 MAD`, 50, 265);
+      ctx.fillText(`Cotisation Minimale / Impôt sur les Sociétés (IS) acquitté : 78 500,00 MAD`, 50, 295);
       ctx.fillText(`Statut télédéclaration : Validée par télé-règlement bancaire avec accusé DGI conforme`, 50, 325);
       ctx.fillText(`Représentant déclarant : ${cand.demandeur.prenom_representant} ${cand.demandeur.nom_representant}`, 50, 355);
 
@@ -283,9 +283,9 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Entreprise auditée : ${cand.demandeur.nom_ou_raison_sociale}`, 50, 145);
 
       ctx.font = '13px "Segoe UI", Arial, sans-serif';
-      ctx.fillText(`Total Actif Immobilisé : 1 450 000,00 DH   |   Actif Circulant : 820 000,00 DH`, 50, 175);
-      ctx.fillText(`Capitaux Propres & Réserves : 980 000,00 DH   |   Dettes Financières : 310 000,00 DH`, 50, 205);
-      ctx.fillText(`Trésorerie Actif : 240 000,00 DH   |   Fonds de Roulement Net Global : +670 000 DH`, 50, 235);
+      ctx.fillText(`Total Actif Immobilisé : 1 450 000,00 MAD   |   Actif Circulant : 820 000,00 MAD`, 50, 175);
+      ctx.fillText(`Capitaux Propres & Réserves : 980 000,00 MAD   |   Dettes Financières : 310 000,00 MAD`, 50, 205);
+      ctx.fillText(`Trésorerie Actif : 240 000,00 MAD   |   Fonds de Roulement Net Global : +670 000 MAD`, 50, 235);
       ctx.fillText(`Attestation de conformité : Les comptes annuels présentent une image fidèle du patrimoine,`, 50, 270);
       ctx.fillText(`de la situation financière et du résultat de la société selon les normes comptables marocaines.`, 50, 295);
       ctx.fillText(`Cabinet d'expertise comptable : AUDIT & CONSEIL MAGHREB SARL (Fès - Casablanca)`, 50, 335);
@@ -303,11 +303,11 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Structure porteuse : ${cand.demandeur.nom_ou_raison_sociale}`, 50, 145);
 
       ctx.font = '13px "Segoe UI", Arial, sans-serif';
-      ctx.fillText(`Investissement Matériel : Acquisition équipements industriels selon devis : ${cand.syntheticDocs.devis.totalTTC.toLocaleString('fr-FR')} DH`, 50, 175);
-      ctx.fillText(`Investissement Immatériel : Formation technique, licences logicielles et certification : 80 000,00 DH`, 50, 205);
-      ctx.fillText(`Travaux d'aménagement et mise aux normes : 120 000,00 DH`, 50, 235);
-      ctx.fillText(`Coût global prévisionnel des investissements : ${cand.budget.montant_total.toLocaleString('fr-FR')} DH`, 50, 270);
-      ctx.fillText(`Subvention sollicitée : ${cand.budget.montant_demande.toLocaleString('fr-FR')} DH   |   Apport propre acquis : ${(cand.budget.montant_total - cand.budget.montant_demande).toLocaleString('fr-FR')} DH`, 50, 300);
+      ctx.fillText(`Investissement Matériel : Acquisition équipements industriels selon devis : ${cand.syntheticDocs.devis.totalTTC.toLocaleString('fr-FR')} MAD`, 50, 175);
+      ctx.fillText(`Investissement Immatériel : Formation technique, licences logicielles et certification : 80 000,00 MAD`, 50, 205);
+      ctx.fillText(`Travaux d'aménagement et mise aux normes : 120 000,00 MAD`, 50, 235);
+      ctx.fillText(`Coût global prévisionnel des investissements : ${cand.budget.montant_total.toLocaleString('fr-FR')} MAD`, 50, 270);
+      ctx.fillText(`Subvention sollicitée : ${cand.budget.montant_demande.toLocaleString('fr-FR')} MAD   |   Apport propre acquis : ${(cand.budget.montant_total - cand.budget.montant_demande).toLocaleString('fr-FR')} MAD`, 50, 300);
       ctx.fillText(`Calendrier d'exécution : Début ${cand.projet.date_debut} - Achèvement prévu ${cand.projet.date_fin}`, 50, 335);
 
       drawFooter(ctx, cand.demandeur.ville, "Direction Technique et Financière");
@@ -326,7 +326,7 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Porteur : ${cand.demandeur.nom_ou_raison_sociale} (Représentant: ${cand.demandeur.prenom_representant} ${cand.demandeur.nom_representant})`, 50, 175);
       ctx.fillText(`Marché visé : Marché régional et national en forte croissance (Maroc 2026-2030)`, 50, 205);
       ctx.fillText(`Modèle économique : Vente directe B2B / B2C avec marge brute moyenne prévisionnelle de 38%`, 50, 235);
-      ctx.fillText(`Chiffre d'affaires prévisionnel Année 1 : 1 200 000 DH   |   Année 2 : 2 100 000 DH   |   Année 3 : 3 400 000 DH`, 50, 265);
+      ctx.fillText(`Chiffre d'affaires prévisionnel Année 1 : 1 200 000 MAD   |   Année 2 : 2 100 000 MAD   |   Année 3 : 3 400 000 MAD`, 50, 265);
       ctx.fillText(`Emplois créés prévus : 6 emplois directs permanents dont 3 jeunes diplômés de la région`, 50, 295);
       ctx.fillText(`Rentabilité : Seuil de rentabilité estimé à partir du 9ème mois d'exploitation`, 50, 325);
 
@@ -442,7 +442,7 @@ export async function generateSyntheticDocument(
       ctx.font = '13px "Segoe UI", Arial, sans-serif';
       ctx.fillText(`Dispositif : Garantie publique Damane Intelak / Tamwilcom Maroc`, 50, 175);
       ctx.fillText(`Banque prêteuse : ${cand.syntheticDocs.rib.banque} (Dossier N° CR-2026-894)`, 50, 205);
-      ctx.fillText(`Montant du crédit accordé : ${cand.budget.montant_demande.toLocaleString('fr-FR')} DH à taux préférentiel garanti`, 50, 235);
+      ctx.fillText(`Montant du crédit accordé : ${cand.budget.montant_demande.toLocaleString('fr-FR')} MAD à taux préférentiel garanti`, 50, 235);
       ctx.fillText(`Quotité de garantie Tamwilcom : 80% du risque en capital pris en charge`, 50, 265);
       ctx.fillText(`Objet : Financement d'équipements productifs et du besoin en fonds de roulement d'amorçage`, 50, 295);
 
@@ -497,10 +497,10 @@ export async function generateSyntheticDocument(
       ctx.fillText(`Entreprise : ${cand.demandeur.nom_ou_raison_sociale}`, 50, 145);
 
       ctx.font = '13px "Segoe UI", Arial, sans-serif';
-      ctx.fillText(`Total des besoins d'investissement (Emplois) : ${cand.budget.montant_total.toLocaleString('fr-FR')} DH`, 50, 175);
-      ctx.fillText(`Ressource 1 - Subvention sollicitée : ${cand.budget.montant_demande.toLocaleString('fr-FR')} DH (Sollicitée)`, 50, 205);
-      ctx.fillText(`Ressource 2 - Apport propre et fonds propres : ${(cand.budget.montant_total - cand.budget.montant_demande).toLocaleString('fr-FR')} DH (Acquis)`, 50, 235);
-      ctx.fillText(`Équilibre financier : Total Ressources (100%) = Total Besoins (${cand.budget.montant_total.toLocaleString('fr-FR')} DH)`, 50, 265);
+      ctx.fillText(`Total des besoins d'investissement (Emplois) : ${cand.budget.montant_total.toLocaleString('fr-FR')} MAD`, 50, 175);
+      ctx.fillText(`Ressource 1 - Subvention sollicitée : ${cand.budget.montant_demande.toLocaleString('fr-FR')} MAD (Sollicitée)`, 50, 205);
+      ctx.fillText(`Ressource 2 - Apport propre et fonds propres : ${(cand.budget.montant_total - cand.budget.montant_demande).toLocaleString('fr-FR')} MAD (Acquis)`, 50, 235);
+      ctx.fillText(`Équilibre financier : Total Ressources (100%) = Total Besoins (${cand.budget.montant_total.toLocaleString('fr-FR')} MAD)`, 50, 265);
       ctx.fillText(`Taux d'intervention publique sollicité : ${Math.round((cand.budget.montant_demande / cand.budget.montant_total) * 100)}%`, 50, 295);
 
       drawFooter(ctx, cand.demandeur.ville, "Direction Financière et Comptable");
