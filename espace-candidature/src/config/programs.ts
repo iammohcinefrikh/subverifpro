@@ -164,7 +164,7 @@ export const GRANT_PROGRAMS: ProgramOption[] = [
     uuid: 'bb4ae4d5-1568-4f49-9ac3-f24ddd2e125b',
     nom: 'FORSA',
     categorie: 'Gouvernement • Amorçage & Entrepreneuriat',
-    description: 'Programme gouvernemental destiné aux porteurs de projets avec formation, accompagnement et financement. Les éditions réalisées proposaient un financement pouvant atteindre 100 000 DH, comprenant une subvention et un prêt d\'honneur sans intérêt.',
+    description: 'Programme gouvernemental destiné aux porteurs de projets avec formation, accompagnement et financement. Les éditions réalisées proposaient un financement pouvant atteindre 100 000 MAD, comprenant une subvention et un prêt d\'honneur sans intérêt.',
     plafond_indicatif: 100000,
     status: 'HISTORICAL',
     created_at: '2026-09-08 11:06:50.579469+00',

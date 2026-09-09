@@ -273,7 +273,7 @@ export const CandidateSelectorModal: React.FC<CandidateSelectorModalProps> = ({
                         </div>
                         <div>
                           <span className="text-slate-400">Demande : </span>
-                          <span className="font-bold text-emerald-700">{candidate.budget.montant_demande.toLocaleString('fr-FR')} DH</span>
+                          <span className="font-bold text-emerald-700">{candidate.budget.montant_demande.toLocaleString('fr-FR')} MAD</span>
                         </div>
                       </div>
                     </div>

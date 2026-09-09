@@ -35,13 +35,37 @@ export function extractFieldsFromText(text: string): DetectedFields {
     result.iban = ibanMatch[1].replace(/\s+/g, '').toUpperCase();
   }
 
-  // 3. Détection Montant (ex: 180 000 DH ou 600 000 MAD ou 45 000 €)
-  const montantMatch = normalized.match(/(?:(?:total|montant|ttc|ht|subvention|somme)[\s:]*)?(\d{1,3}(?:[\s.]\d{3})*(?:[,\.]\d{2})?)\s*(?:DH|MAD|dirhams?|€|EUR|euros?)\b/i)
-    || normalized.match(/(\d{1,3}(?:[\s.]\d{3})*(?:[,\.]\d{2})?)\s*(?:DH|MAD|€|EUR)/i);
-  if (montantMatch) {
-    const rawVal = montantMatch[1].replace(/\s+/g, ' ').trim();
-    const currency = /DH|MAD|dirham/i.test(montantMatch[0]) ? 'DH' : '€';
-    result.montant = `${rawVal} ${currency}`;
+  // 3. Détection Montant : uniquement si un mot-clé de total financier explicite est présent
+  // Évite d'extraire des chiffres tronqués ou d'inventer des montants sur des documents sans total unique
+  const explicitAmountPatterns = [
+    // Total TTC (devis, facture)
+    /(?:total\s*ttc|montant\s*ttc)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Coût global / Total investissement / Total des besoins
+    /(?:co[uû]t\s*global|co[uû]t\s*total|total\s*des\s*besoins)[^:0-9\n\r]{0,40}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Subvention sollicitée / accordée
+    /(?:subvention\s*(?:sollicit[eé]e|demand[eé]e|accord[eé]e)|montant\s*de\s*la\s*subvention)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Capital social
+    /(?:capital\s*social)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Montant du crédit / Montant total / Total général / Total HT
+    /(?:montant\s*du\s*cr[eé]dit|montant\s*total|total\s*g[eé]n[eé]ral|total\s*ht)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Cotisations CNSS
+    /(?:cotisation(?:s)?\s*(?:cnss|pay[eé]es?)?)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i,
+    // Chiffre d'affaires annuel total / Résultat net
+    /(?:chiffre\s*d['\s]affaires\s*net\s*ht|r[eé]sultat\s*net\s*comptable)[^:0-9\n\r]{0,30}[\s:]*([0-9][0-9\s.,]*[0-9]|[0-9]+)\s*(?:MAD|DH|dirhams?|€|EUR)?/i
+  ];
+
+  for (const pattern of explicitAmountPatterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1]) {
+      const parts = match[1].trim().split(/[.,]/);
+      const intPart = parseInt(parts[0].replace(/\s/g, ''), 10);
+      if (!isNaN(intPart) && intPart > 0) {
+        const formattedInt = intPart.toLocaleString('fr-FR');
+        const decPart = parts.length > 1 && parts[1].length <= 2 ? ',' + parts[1] : '';
+        result.montant = `${formattedInt}${decPart} MAD`;
+        break;
+      }
+    }
   }
 
   // 4. Détection Date (formats JJ/MM/AAAA ou JJ-MM-AAAA ou texte "15 janvier 2026")

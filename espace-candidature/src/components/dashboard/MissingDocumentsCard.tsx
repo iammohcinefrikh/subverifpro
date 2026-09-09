@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 import { processFileOcr, fileToBase64 } from '../../services/ocrService';
 import { sendComplementToWebhook } from '../../services/webhookService';
 import { addComplementPiecesToDossier } from '../../services/mockAuthService';
+import { saveComplianceCheckToDb } from '../../services/complianceCheckService';
 import { generateSyntheticDocument } from '../../services/syntheticDocumentGenerator';
 import { getDocumentTypeDefinition } from '../../config/documentTypes';
 import {
@@ -151,7 +152,7 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
           },
           cnss: {
             numAffiliation: '7654321',
-            cotisations: '24 500,00 DH'
+            cotisations: '24 500,00 MAD'
           }
         }
       });
@@ -221,14 +222,53 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
 
     try {
       // 1. Envoi au webhook externe
-      await sendComplementToWebhook(complementPayload);
+      await sendComplementToWebhook(complementPayload).catch((e) =>
+        console.warn('Webhook warning:', e)
+      );
 
-      // 2. Mise à jour de la persistance locale (localStorage)
-      addComplementPiecesToDossier(
+      // 2. Mise à jour de la persistance locale (localStorage sans base64 volumineux)
+      const sanitizedPieces = piecesPayload.map((p) => ({ ...p, fichier_base64: '' }));
+      const updatedUser = addComplementPiecesToDossier(
         user.id,
-        piecesPayload,
+        sanitizedPieces,
         candidateRemarks || 'Pièces complémentaires transmises par le candidat'
       );
+
+      // 3. Calcul précis des pièces et de l'exhaustivité
+      const allPieces = updatedUser ? updatedUser.dossier.pieces : [...user.dossier.pieces, ...piecesPayload];
+      const piecesRequises = user.dossier.pieces_requises || ['piece_identite', 'rib', 'devis', 'statuts'];
+      const currentTypes = new Set(allPieces.map((p) => p.type_declare));
+      const remainingMissing = piecesRequises.filter((req) => !currentTypes.has(req));
+      const isComplete = remainingMissing.length === 0;
+
+      const rate = piecesRequises.length > 0
+        ? Math.min(100, Math.round(((piecesRequises.length - remainingMissing.length) / piecesRequises.length) * 100))
+        : 100;
+
+      // 4. Synchronisation avec PostgreSQL public.compliance_checks
+      await saveComplianceCheckToDb({
+        candidate_id: user.id,
+        application_id: (user.dossier as any).db_application_id || user.dossier.dossier_id,
+        program_id: user.projet.programme_id || 'prog-forsa',
+        completeness_rate: rate,
+        status: isComplete ? 'COMPLETE' : 'INCOMPLETE',
+        mandatory_documents_count: piecesRequises.length,
+        present_count: allPieces.length,
+        missing_count: remainingMissing.length,
+        expired_count: 0,
+        present_documents: allPieces.map((p) => p.type_declare),
+        missing_documents: remainingMissing.map((t) => ({
+          type: t,
+          document_type: t,
+          status: 'MISSING'
+        })),
+        documents: allPieces.map((p) => ({
+          type: p.type_declare,
+          document_type: p.type_declare,
+          nom_fichier: p.nom_fichier,
+          status: 'PRESENT'
+        }))
+      });
 
       setSubmitSuccess(true);
       setNewDocuments([]);

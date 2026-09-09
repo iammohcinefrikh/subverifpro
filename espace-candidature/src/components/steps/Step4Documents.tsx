@@ -197,7 +197,7 @@ export const Step4Documents: React.FC<Step4Props> = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {selectedProg.categorie} • Plafond d'aide : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} DH
+                {selectedProg.categorie} • Plafond d'aide : {selectedProg.plafond_indicatif.toLocaleString('fr-FR')} MAD
               </p>
             </div>
 

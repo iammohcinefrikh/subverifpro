@@ -78,8 +78,8 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
           nom_fichier: 'Statuts_Constitutifs_Signes.pdf',
           type_declare: 'statuts',
           type_suggere_ocr: 'statuts',
-          texte_ocr: 'STATUTS DE LA SOCIETE A RESPONSABILITE LIMITEE ATLAS TECH SOLUTIONS SARL Capital social: 500 000 DH Siège: Casablanca',
-          champs_detectes: { montant: '500 000 DH' },
+          texte_ocr: 'STATUTS DE LA SOCIETE A RESPONSABILITE LIMITEE ATLAS TECH SOLUTIONS SARL Capital social: 500 000 MAD Siège: Casablanca',
+          champs_detectes: { montant: '500 000 MAD' },
           fichier_base64: 'data:application/pdf;base64,JVBERi0xLjQKJcfs...',
           statut_ocr: 'succes'
         },
@@ -171,8 +171,8 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
           nom_fichier: 'Devis_Distillateur_Inox_Solaire.pdf',
           type_declare: 'devis',
           type_suggere_ocr: 'devis',
-          texte_ocr: 'DEVIS N° DEV-2026-8891 Distillateur solaire 500L Inox 316L Total TTC: 140 000 DH Fournisseur: ATLAS AGRO EQUIPEMENT ICE 001988234000012',
-          champs_detectes: { montant: '140 000 DH' },
+          texte_ocr: 'DEVIS N° DEV-2026-8891 Distillateur solaire 500L Inox 316L Total TTC: 140 000 MAD Fournisseur: ATLAS AGRO EQUIPEMENT ICE 001988234000012',
+          champs_detectes: { montant: '140 000 MAD' },
           fichier_base64: 'data:application/pdf;base64,JVBERi0xLjQKJcfs...',
           statut_ocr: 'succes'
         },
@@ -249,7 +249,7 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
       date_soumission: '2026-07-10T11:00:00.000Z',
       statut: 'valide',
       pieces_requises: ['piece_identite', 'rc', 'statuts', 'rib', 'devis'],
-      remarques_instructeur: 'Félicitations ! La commission mixte a émis un avis très favorable. La convention d\'attribution de subvention pour un montant de 260 000 DH a été signée.',
+      remarques_instructeur: 'Félicitations ! La commission mixte a émis un avis très favorable. La convention d\'attribution de subvention pour un montant de 260 000 MAD a été signée.',
       decision_date: '2026-08-15T10:00:00.000Z',
       pieces: [
         {

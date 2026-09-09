@@ -1,9 +1,10 @@
 import React from 'react';
 import { Check, Building2, Lightbulb, Calculator, FileText, Send } from 'lucide-react';
+import { useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 interface StepperProps {
   currentStep: number;
-  totalSteps: number;
+  totalSteps?: number;
   onStepClick?: (step: number) => void;
   completedSteps?: boolean[];
 }
@@ -21,6 +22,8 @@ export const Stepper: React.FC<StepperProps> = ({
   onStepClick,
   completedSteps = []
 }) => {
+  const { primaryColor } = useMoroccanTheme();
+
   const steps: StepItem[] = [
     {
       id: 1,
@@ -37,7 +40,7 @@ export const Stepper: React.FC<StepperProps> = ({
     {
       id: 3,
       title: 'Budget',
-      subtitle: 'Dépenses & financement',
+      subtitle: 'Dépenses & plan',
       icon: <Calculator className="w-4 h-4" />
     },
     {
@@ -55,83 +58,109 @@ export const Stepper: React.FC<StepperProps> = ({
   ];
 
   return (
-    <nav aria-label="Progression du formulaire" className="w-full bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-card no-print">
+    <nav
+      aria-label="Progression du dossier de candidature"
+      className="w-full bg-sand-50/90 backdrop-blur-sm rounded-2xl border border-sand-300 p-4 sm:p-5 shadow-card no-print relative overflow-hidden"
+    >
       {/* Mobile view */}
       <div className="flex sm:hidden items-center justify-between">
         <div>
-          <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
-            Étape {currentStep} sur {totalSteps}
+          <span className="text-[11px] font-bold text-terracotta-600 uppercase tracking-wider" style={{ color: primaryColor }}>
+            Module {currentStep} sur {totalSteps}
           </span>
-          <h2 className="text-base font-bold text-slate-900 mt-0.5">
+          <h2 className="text-base font-bold text-indigo-950 mt-0.5">
             {steps[currentStep - 1]?.title}
           </h2>
         </div>
-        <div className="flex gap-1.5">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                step.id === currentStep
-                  ? 'w-6 bg-brand-600'
-                  : step.id < currentStep
-                  ? 'w-2 bg-emerald-500'
-                  : 'w-2 bg-slate-200'
-              }`}
-            />
-          ))}
+        <div className="flex items-center gap-1.5">
+          {steps.map((step) => {
+            const isCompleted = step.id < currentStep || completedSteps[step.id - 1];
+            const isCurrent = step.id === currentStep;
+
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => onStepClick && onStepClick(step.id)}
+                title={`Aller à l'étape ${step.id}: ${step.title}`}
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
+                  isCurrent
+                    ? 'w-6 h-2.5 bg-terracotta-500 shadow-sm'
+                    : isCompleted
+                    ? 'w-2.5 h-2.5 bg-emerald-600 hover:scale-125'
+                    : 'w-2.5 h-2.5 bg-sand-300 hover:scale-125'
+                }`}
+                style={isCurrent ? { backgroundColor: primaryColor } : {}}
+              />
+            );
+          })}
         </div>
       </div>
 
-      {/* Desktop view */}
-      <ol className="hidden sm:grid grid-cols-5 gap-2 relative">
-        {steps.map((step) => {
-          const isCompleted = step.id < currentStep || completedSteps[step.id - 1];
-          const isCurrent = step.id === currentStep;
-          const isAccessible = step.id <= currentStep || completedSteps[step.id - 2];
+      {/* Desktop view — Module Zellige & Frise d'assemblage */}
+      <div className="hidden sm:block relative">
+        {/* Ligne directrice de raccordement façon pavage */}
+        <div
+          className="absolute top-5 left-8 right-8 h-0.5 -translate-y-1/2 z-0 pointer-events-none"
+          style={{
+            background: `linear-gradient(to right, #0E5E4B ${((currentStep - 1) / (totalSteps - 1)) * 100}%, #E5D5B7 ${((currentStep - 1) / (totalSteps - 1)) * 100}%)`,
+          }}
+        />
 
-          return (
-            <li key={step.id} className="relative flex flex-col items-center text-center group">
-              <button
-                type="button"
-                onClick={() => isAccessible && onStepClick && onStepClick(step.id)}
-                disabled={!isAccessible}
-                className={`flex flex-col items-center w-full focus:outline-none transition-all ${
-                  isAccessible ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                }`}
-              >
-                {/* Circle Icon */}
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 border-2 text-sm font-bold mb-2 shadow-sm ${
-                    isCompleted
-                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-emerald-600/20'
-                      : isCurrent
-                      ? 'bg-brand-600 border-brand-600 text-white ring-4 ring-brand-100 shadow-brand-600/20'
-                      : 'bg-white border-slate-300 text-slate-400 group-hover:border-slate-400'
-                  }`}
-                >
-                  {isCompleted ? <Check className="w-5 h-5 stroke-[2.5]" /> : step.icon}
-                </div>
+        <ol className="grid grid-cols-5 gap-2 relative z-10">
+          {steps.map((step) => {
+            const isCompleted = step.id < currentStep || completedSteps[step.id - 1];
+            const isCurrent = step.id === currentStep;
 
-                {/* Text */}
-                <span
-                  className={`text-xs font-bold tracking-tight transition-colors ${
-                    isCurrent
-                      ? 'text-brand-700'
-                      : isCompleted
-                      ? 'text-slate-800'
-                      : 'text-slate-400'
-                  }`}
+            return (
+              <li key={step.id} className="relative flex flex-col items-center text-center group">
+                <button
+                  type="button"
+                  onClick={() => onStepClick && onStepClick(step.id)}
+                  title={`Cliquer pour aller à l'étape ${step.id} : ${step.title}`}
+                  className="flex flex-col items-center w-full focus:outline-none transition-all cursor-pointer hover:scale-102"
                 >
-                  {step.title}
-                </span>
-                <span className="text-[11px] text-slate-400 font-normal hidden lg:block">
-                  {step.subtitle}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+                  {/* Module géométrique (Étoile / Module scellé) */}
+                  <div
+                    className={`w-10 h-10 flex items-center justify-center transition-all duration-300 text-sm font-bold mb-2 shadow-sm relative ${
+                      isCompleted
+                        ? 'bg-emerald-600 text-white rounded-lg rotate-45 shadow-zellige'
+                        : isCurrent
+                        ? 'bg-terracotta-500 text-white rounded-xl shadow-md ring-4 ring-gold-300/60 scale-105'
+                        : 'bg-white border-2 border-sand-300 text-sand-500 rounded-xl group-hover:border-gold-400'
+                    }`}
+                    style={isCurrent ? { backgroundColor: primaryColor } : {}}
+                  >
+                    <div className={isCompleted ? '-rotate-45 flex items-center justify-center' : 'flex items-center justify-center'}>
+                      {isCompleted ? (
+                        <Check className="w-5 h-5 text-gold-200 stroke-[3]" />
+                      ) : (
+                        step.icon
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Libellé & sous-titre */}
+                  <span
+                    className={`text-xs font-bold tracking-tight transition-colors ${
+                      isCurrent
+                        ? 'text-indigo-950 font-extrabold'
+                        : isCompleted
+                        ? 'text-emerald-800'
+                        : 'text-sand-500'
+                    }`}
+                  >
+                    {step.title}
+                  </span>
+                  <span className="text-[11px] text-sand-500 font-normal hidden lg:block">
+                    {step.subtitle}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </nav>
   );
 };
