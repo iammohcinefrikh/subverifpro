@@ -1,0 +1,316 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Better-Auth Tables (replaces instructors table for auth and user management)
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  // Custom instructor fields
+  fullName String?  @map("full_name") @db.VarChar
+  isActive Boolean? @default(true) @map("is_active")
+
+  sessions Session[]
+  accounts Account[]
+
+  assignedApplications Application[]  @relation("AssignedInstructor")
+  dossierEvents        DossierEvent[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @db.Timestamptz
+  token     String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @db.Timestamptz
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([providerId, accountId])
+  @@map("account")
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  @@unique([identifier, value])
+  @@map("verification")
+  @@index([identifier])
+}
+
+// -----------------------------------------------------------------------------
+// Core Business Tables (Protected existing schema)
+// -----------------------------------------------------------------------------
+
+model Program {
+  id           String    @id @default(uuid()) @db.Uuid
+  programId    String    @unique @map("program_id") @db.VarChar
+  name         String    @db.VarChar
+  description  String?   @db.Text
+  status       String?   @db.VarChar
+  createdAt    DateTime? @map("created_at") @db.Timestamptz
+  updatedAt    DateTime? @map("updated_at") @db.Timestamptz
+  requirements Json?     @db.JsonB
+
+  applications        Application[]
+  eligibilityCriteria ProgramEligibilityCriterion[]
+
+  @@map("programs")
+}
+
+model ProgramEligibilityCriterion {
+  id             String    @id @default(uuid()) @db.Uuid
+  programId      String    @map("program_id") @db.VarChar
+  criterionCode  String    @map("criterion_code") @db.VarChar
+  criterionLabel String    @map("criterion_label") @db.VarChar
+  fieldName      String    @map("field_name") @db.VarChar
+  operator       String    @db.VarChar
+  expectedValue  Json      @map("expected_value") @db.JsonB
+  weight         Int       @db.Integer
+  isActive       Boolean   @map("is_active") @db.Boolean
+  createdAt      DateTime? @map("created_at") @db.Timestamptz
+
+  program           Program            @relation(fields: [programId], references: [programId])
+  eligibilityChecks EligibilityCheck[]
+
+  @@map("program_eligibility_criteria")
+}
+
+model Application {
+  id                 String    @id @default(uuid()) @db.Uuid
+  applicationId      String    @unique @map("application_id") @db.Uuid
+  programId          String    @map("program_id") @db.VarChar
+  cin                String    @db.VarChar
+  firstName          String    @map("first_name") @db.VarChar
+  lastName           String    @map("last_name") @db.VarChar
+  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
+  phone              String?   @db.VarChar
+  email              String?   @db.VarChar
+  address            String?   @db.Text
+  city               String?   @db.VarChar
+  region             String?   @db.VarChar
+  structureType      String?   @map("structure_type") @db.VarChar
+  nomOuRaisonSociale String?   @map("nom_ou_raison_sociale") @db.VarChar
+  secteurActivite    String?   @map("secteur_activite") @db.Text
+  ancienneteAnnees   Int?      @map("anciennete_annees") @db.Integer
+  projectObject      String?   @map("project_object") @db.Text
+  projectDescription String?   @map("project_description") @db.Text
+  projectStartDate   DateTime? @map("project_start_date") @db.Date
+  projectEndDate     DateTime? @map("project_end_date") @db.Date
+  totalAmount        Decimal?  @map("total_amount") @db.Decimal
+  requestedAmount    Decimal?  @map("requested_amount") @db.Decimal
+  depenses           Json?     @db.JsonB
+  financements       Json?     @db.JsonB
+  documents          Json?     @db.JsonB
+  assignedInstructor String?   @map("assigned_instructor") @db.VarChar
+  status             String?   @default("SUBMITTED") @db.VarChar(50)
+  submittedAt        DateTime? @map("submitted_at") @db.Timestamptz
+  createdAt          DateTime? @map("created_at") @db.Timestamptz
+  updatedAt          DateTime? @map("updated_at") @db.Timestamptz
+
+  program               Program                @relation(fields: [programId], references: [programId])
+  instructor            User?                  @relation("AssignedInstructor", fields: [assignedInstructor], references: [id])
+  complianceCheck       ComplianceCheck?
+  eligibilityAssessment EligibilityAssessment?
+  eligibilityChecks     EligibilityCheck[]
+  aiAnalyses            AiAnalysis[]
+  complementRequests    ComplementRequest[]
+  dossierEvents         DossierEvent[]
+  serviceMetrics        ServiceMetric[]
+
+  @@map("applications")
+}
+
+model ComplianceCheck {
+  id                      String    @id @default(uuid()) @db.Uuid
+  applicationId           String    @unique @map("application_id") @db.Uuid
+  programId               String    @map("program_id") @db.VarChar
+  completenessRate        Decimal?  @map("completeness_rate") @db.Decimal
+  status                  String?   @db.VarChar
+  documents               Json?     @db.JsonB
+  missingDocuments        Json?     @map("missing_documents") @db.JsonB
+  expiredDocuments        Json?     @map("expired_documents") @db.JsonB
+  presentDocuments        Json?     @map("present_documents") @db.JsonB
+  mandatoryDocumentsCount Int?      @map("mandatory_documents_count") @db.Integer
+  presentCount            Int?      @map("present_count") @db.Integer
+  missingCount            Int?      @map("missing_count") @db.Integer
+  expiredCount            Int?      @map("expired_count") @db.Integer
+  checkedAt               DateTime? @map("checked_at") @db.Timestamptz
+  createdAt               DateTime? @map("created_at") @db.Timestamptz
+  updatedAt               DateTime? @map("updated_at") @db.Timestamptz
+
+  application Application @relation(fields: [applicationId], references: [applicationId])
+
+  @@map("compliance_checks")
+}
+
+model EligibilityAssessment {
+  id               String    @id @default(uuid()) @db.Uuid
+  applicationId    String    @unique @map("application_id") @db.Uuid
+  programId        String    @map("program_id") @db.VarChar
+  eligibilityScore Int       @map("eligibility_score") @db.Integer
+  result           String    @db.VarChar
+  failedCriteria   String[]  @map("failed_criteria")
+  assessedAt       DateTime? @map("assessed_at") @db.Timestamptz
+
+  application Application        @relation(fields: [applicationId], references: [applicationId])
+  checks      EligibilityCheck[]
+
+  @@map("eligibility_assessments")
+}
+
+model EligibilityCheck {
+  id            String    @id @default(uuid()) @db.Uuid
+  assessmentId  String    @map("assessment_id") @db.Uuid
+  applicationId String    @map("application_id") @db.Uuid
+  criterionId   String?   @map("criterion_id") @db.Uuid
+  criterionCode String    @map("criterion_code") @db.VarChar
+  status        String    @db.VarChar
+  detail        String?   @db.Text
+  pointsAwarded Int?      @map("points_awarded") @db.Integer
+  checkedAt     DateTime? @map("checked_at") @db.Timestamptz
+
+  assessment  EligibilityAssessment        @relation(fields: [assessmentId], references: [id])
+  application Application                  @relation(fields: [applicationId], references: [applicationId])
+  criterion   ProgramEligibilityCriterion? @relation(fields: [criterionId], references: [id])
+
+  @@map("eligibility_checks")
+}
+
+model AiAnalysis {
+  id                    String    @id @default(uuid()) @db.Uuid
+  applicationId         String    @map("application_id") @db.Uuid
+  modelName             String    @map("model_name") @db.VarChar
+  budgetCoherence       String?   @map("budget_coherence") @db.VarChar
+  budgetComment         String?   @map("budget_comment") @db.Text
+  projectQualityScore   Int?      @map("project_quality_score") @db.Integer
+  riskFlags             String[]  @map("risk_flags")
+  strengths             String[]  @map("strengths")
+  instructorFocusPoints String[]  @map("instructor_focus_points")
+  overallRecommendation String?   @map("overall_recommendation") @db.VarChar
+  summaryFr             String?   @map("summary_fr") @db.Text
+  rawResponse           Json?     @map("raw_response") @db.JsonB
+  status                String?   @db.VarChar
+  analyzedAt            DateTime? @map("analyzed_at") @db.Timestamptz
+
+  application Application @relation(fields: [applicationId], references: [applicationId])
+
+  @@map("ai_analyses")
+}
+
+model ComplementRequest {
+  id            String    @id @default(uuid()) @db.Uuid
+  applicationId String    @map("application_id") @db.Uuid
+  missingDocs   String[]  @map("missing_docs")
+  deadline      DateTime  @db.Timestamptz
+  status        String?   @db.VarChar
+  notifiedAt    DateTime? @map("notified_at") @db.Timestamptz
+  receivedAt    DateTime? @map("received_at") @db.Timestamptz
+  createdAt     DateTime? @map("created_at") @db.Timestamptz
+
+  application Application @relation(fields: [applicationId], references: [applicationId])
+
+  @@map("complement_requests")
+}
+
+model DossierEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  applicationId String    @map("application_id") @db.Uuid
+  userId        String?   @map("user_id")
+  eventType     String    @map("event_type") @db.VarChar(50)
+  description   String    @db.Text
+  metadata      Json?     @db.JsonB
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz
+
+  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId])
+  @@index([createdAt(sort: Desc)])
+  @@map("dossier_events")
+}
+
+// -----------------------------------------------------------------------------
+// Telemetry & Health Tables (Public Uptime Page)
+// -----------------------------------------------------------------------------
+
+model WorkflowLog {
+  id        String    @id @default(uuid()) @db.Uuid
+  service   String    @db.VarChar
+  node      String    @db.VarChar
+  message   String    @db.Text
+  createdAt DateTime? @map("created_at") @db.Timestamptz
+
+  @@map("workflow_logs")
+}
+
+model ServiceMetric {
+  id              String    @id @default(uuid()) @db.Uuid
+  applicationId   String?   @map("application_id") @db.Uuid
+  g1StartedAt     DateTime? @map("g1_started_at") @db.Timestamptz
+  g1EndedAt       DateTime? @map("g1_ended_at") @db.Timestamptz
+  g1DurationMs    Int?      @map("g1_duration_ms") @db.Integer
+  g2StartedAt     DateTime? @map("g2_started_at") @db.Timestamptz
+  g2EndedAt       DateTime? @map("g2_ended_at") @db.Timestamptz
+  g2DurationMs    Int?      @map("g2_duration_ms") @db.Integer
+  g3StartedAt     DateTime? @map("g3_started_at") @db.Timestamptz
+  g3EndedAt       DateTime? @map("g3_ended_at") @db.Timestamptz
+  g3DurationMs    Int?      @map("g3_duration_ms") @db.Integer
+  g4StartedAt     DateTime? @map("g4_started_at") @db.Timestamptz
+  g4EndedAt       DateTime? @map("g4_ended_at") @db.Timestamptz
+  g4DurationMs    Int?      @map("g4_duration_ms") @db.Integer
+  g5StartedAt     DateTime? @map("g5_started_at") @db.Timestamptz
+  g5EndedAt       DateTime? @map("g5_ended_at") @db.Timestamptz
+  g5DurationMs    Int?      @map("g5_duration_ms") @db.Integer
+  createdAt       DateTime? @map("created_at") @db.Timestamptz
+  totalDurationMs Int?      @map("total_duration_ms") @db.Integer
+
+  application Application? @relation(fields: [applicationId], references: [applicationId])
+
+  @@map("service_metrics")
+}
