@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -10,7 +11,9 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider defaultOpen={true}>
-      <AppSidebar />
+      <Suspense fallback={null}>
+        <AppSidebar />
+      </Suspense>
       <SidebarInset className="flex flex-col min-h-screen bg-stone-50/30 dark:bg-stone-950">
         <header className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-between border-b border-stone-200 dark:border-stone-800 bg-background/95 backdrop-blur px-4">
           <div className="flex items-center gap-2">

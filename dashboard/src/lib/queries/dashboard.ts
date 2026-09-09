@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { computePriority, type PriorityInfo } from "@/lib/utils/priority"
 
 export interface DashboardKPIs {
@@ -50,6 +51,8 @@ export interface DossierRowItem {
   status: string
   statusLabel: string
   completenessRate: number
+  hasComplianceCheck: boolean
+  hasPendingComplement: boolean
   eligibilityResult: string
   eligibilityLabel: string
   problemText: string
@@ -60,6 +63,87 @@ export interface DossierRowItem {
   totalAmount: number
   requestedAmount: number
   submittedAt: Date | null
+}
+
+export const dossierInclude = {
+  program: true,
+  complianceCheck: true,
+  eligibilityAssessment: true,
+  complementRequests: {
+    orderBy: { deadline: "asc" as const },
+  },
+}
+
+export type ApplicationWithRelations = Prisma.ApplicationGetPayload<{
+  include: typeof dossierInclude
+}>
+
+export function mapApplicationToDossierRow(
+  app: ApplicationWithRelations
+): DossierRowItem {
+  const comp = app.complianceCheck
+  const elig = app.eligibilityAssessment
+  const complementRequests = app.complementRequests ?? []
+  const compl = complementRequests[0]
+
+  const completenessRate = comp ? Number(comp.completenessRate || 0) : 0
+  const missingCount = comp?.missingCount || 0
+  const expiredCount = comp?.expiredCount || 0
+
+  // Compute human-friendly problem string
+  let problemText = "—"
+  if (missingCount > 0 && expiredCount > 0) {
+    problemText = `${missingCount} doc. manquant${missingCount > 1 ? "s" : ""}, ${expiredCount} expiré${expiredCount > 1 ? "s" : ""}`
+  } else if (missingCount > 0) {
+    problemText = `${missingCount} pièce${missingCount > 1 ? "s" : ""} manquante${missingCount > 1 ? "s" : ""}`
+  } else if (expiredCount > 0) {
+    problemText = `${expiredCount} pièce${expiredCount > 1 ? "s" : ""} expirée${expiredCount > 1 ? "s" : ""}`
+  } else if (elig?.failedCriteria && elig.failedCriteria.length > 0) {
+    problemText = `${elig.failedCriteria.length} critère${elig.failedCriteria.length > 1 ? "s" : ""} non conforme${elig.failedCriteria.length > 1 ? "s" : ""}`
+  } else if (app.status === "A_VERIFIER" || app.status === "SUBMITTED") {
+    problemText = "Vérification requise"
+  }
+
+  const deadline = compl?.deadline ? new Date(compl.deadline) : null
+  const deadlineFormatted = deadline
+    ? deadline.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+    : "—"
+
+  const priority = computePriority({
+    deadline,
+    missingCount,
+    expiredCount,
+    eligibilityResult: elig?.result,
+  })
+
+  const refShort = `APP-${app.applicationId.slice(0, 6).toUpperCase()}`
+
+  const hasPendingComplement = complementRequests.some((c) =>
+    ["EN_ATTENTE", "en_attente", "PENDING", "pending"].includes(c.status || "")
+  )
+
+  return {
+    id: app.id,
+    applicationId: app.applicationId,
+    reference: refShort,
+    applicantName: `${app.firstName} ${app.lastName}`,
+    programName: app.program?.name || app.programId,
+    status: app.status || "SUBMITTED",
+    statusLabel: formatStatusLabel(app.status || "SUBMITTED"),
+    completenessRate,
+    hasComplianceCheck: Boolean(comp),
+    hasPendingComplement,
+    eligibilityResult: elig?.result || "NON_EVALUE",
+    eligibilityLabel: formatEligibilityLabel(elig?.result || "NON_EVALUE"),
+    problemText,
+    deadline,
+    deadlineFormatted,
+    priority,
+    isUrgent: priority.level === "HAUTE",
+    totalAmount: Number(app.totalAmount || 0),
+    requestedAmount: Number(app.requestedAmount || 0),
+    submittedAt: app.submittedAt ? new Date(app.submittedAt) : null,
+  }
 }
 
 export async function getDashboardData() {
@@ -142,15 +226,7 @@ export async function getDashboardData() {
         .findMany({
           take: 50,
           orderBy: { createdAt: "desc" },
-          include: {
-            program: true,
-            complianceCheck: true,
-            eligibilityAssessment: true,
-            complementRequests: {
-              orderBy: { deadline: "asc" },
-              take: 1,
-            },
-          },
+          include: dossierInclude,
         })
         .catch(() => []),
 
@@ -281,64 +357,7 @@ export async function getDashboardData() {
     })
 
     // --- "À traiter" Prioritized Table Rows ---
-    const dossiersATraiter: DossierRowItem[] = allApplications.map((app) => {
-      const comp = app.complianceCheck
-      const elig = app.eligibilityAssessment
-      const compl = app.complementRequests?.[0]
-
-      const completenessRate = comp ? Number(comp.completenessRate || 0) : 0
-      const missingCount = comp?.missingCount || 0
-      const expiredCount = comp?.expiredCount || 0
-
-      // Compute human-friendly problem string
-      let problemText = "—"
-      if (missingCount > 0 && expiredCount > 0) {
-        problemText = `${missingCount} doc. manquant${missingCount > 1 ? "s" : ""}, ${expiredCount} expiré${expiredCount > 1 ? "s" : ""}`
-      } else if (missingCount > 0) {
-        problemText = `${missingCount} pièce${missingCount > 1 ? "s" : ""} manquante${missingCount > 1 ? "s" : ""}`
-      } else if (expiredCount > 0) {
-        problemText = `${expiredCount} pièce${expiredCount > 1 ? "s" : ""} expirée${expiredCount > 1 ? "s" : ""}`
-      } else if (elig?.failedCriteria && elig.failedCriteria.length > 0) {
-        problemText = `${elig.failedCriteria.length} critère${elig.failedCriteria.length > 1 ? "s" : ""} non conforme${elig.failedCriteria.length > 1 ? "s" : ""}`
-      } else if (app.status === "A_VERIFIER" || app.status === "SUBMITTED") {
-        problemText = "Vérification requise"
-      }
-
-      const deadline = compl?.deadline ? new Date(compl.deadline) : null
-      const deadlineFormatted = deadline
-        ? deadline.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
-        : "—"
-
-      const priority = computePriority({
-        deadline,
-        missingCount,
-        expiredCount,
-        eligibilityResult: elig?.result,
-      })
-
-      const refShort = `APP-${app.applicationId.slice(0, 6).toUpperCase()}`
-
-      return {
-        id: app.id,
-        applicationId: app.applicationId,
-        reference: refShort,
-        applicantName: `${app.firstName} ${app.lastName}`,
-        programName: app.program?.name || app.programId,
-        status: app.status || "SUBMITTED",
-        statusLabel: formatStatusLabel(app.status || "SUBMITTED"),
-        completenessRate,
-        eligibilityResult: elig?.result || "NON_EVALUE",
-        eligibilityLabel: formatEligibilityLabel(elig?.result || "NON_EVALUE"),
-        problemText,
-        deadline,
-        deadlineFormatted,
-        priority,
-        isUrgent: priority.level === "HAUTE",
-        totalAmount: Number(app.totalAmount || 0),
-        requestedAmount: Number(app.requestedAmount || 0),
-        submittedAt: app.submittedAt ? new Date(app.submittedAt) : null,
-      }
-    })
+    const dossiersATraiter: DossierRowItem[] = allApplications.map(mapApplicationToDossierRow)
 
     // Sort prioritized table: HAUTE first, then MOYENNE, then BASSE
     dossiersATraiter.sort((a, b) => {
@@ -385,7 +404,7 @@ export async function getDashboardData() {
   }
 }
 
-function formatStatusLabel(status: string): string {
+export function formatStatusLabel(status: string): string {
   switch (status.toUpperCase()) {
     case "SUBMITTED":
       return "Reçu"
@@ -408,7 +427,7 @@ function formatStatusLabel(status: string): string {
   }
 }
 
-function formatEligibilityLabel(result: string): string {
+export function formatEligibilityLabel(result: string): string {
   switch (result.toUpperCase()) {
     case "ELIGIBLE":
       return "Éligible"

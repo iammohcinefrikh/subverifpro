@@ -5,7 +5,7 @@ import { StatusChart } from "@/components/dashboard/status-chart"
 import { CompletenessChart } from "@/components/dashboard/completeness-chart"
 import { EligibilityChart } from "@/components/dashboard/eligibility-chart"
 import { DeadlinesList } from "@/components/dashboard/deadlines-list"
-import { DossiersTable } from "@/components/dashboard/dossiers-table"
+import { PriorityDossiers } from "@/components/dashboard/priority-dossiers"
 
 export const metadata: Metadata = {
   title: "Vue d'ensemble",
@@ -44,21 +44,8 @@ export default async function DashboardPage() {
         <DeadlinesList deadlines={data.upcomingDeadlines} />
       </section>
 
-      {/* Bottom: "À traiter" Prioritized Table */}
-      <section aria-label="Dossiers à traiter" className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-              Dossiers à traiter
-            </h2>
-            <p className="text-[11px] text-muted-foreground">
-              Liste unique priorisée combinant complétude, conformité et échéances.
-            </p>
-          </div>
-        </div>
-
-        <DossiersTable dossiers={data.dossiersATraiter} />
-      </section>
+      {/* Bottom: "À instruire en priorité" Prioritized List */}
+      <PriorityDossiers dossiers={data.dossiersATraiter} />
     </div>
   )
 }
