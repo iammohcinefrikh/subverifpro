@@ -92,7 +92,7 @@ export const Step3Budget: React.FC<Step3Props> = ({ initialData, onNext, onPrev 
     : 0;
 
   return (
-    <form onSubmit={handleSubmit(onNext)} noValidate className="space-y-8 text-left">
+    <form id="wizard-active-form" onSubmit={handleSubmit(onNext)} noValidate className="space-y-8 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>

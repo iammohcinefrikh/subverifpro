@@ -108,7 +108,7 @@ export const Step5Summary: React.FC<Step5Props> = ({
   };
 
   return (
-    <form onSubmit={handleFormSubmit} noValidate className="space-y-8 text-left">
+    <form id="wizard-active-form" onSubmit={handleFormSubmit} noValidate className="space-y-8 text-left">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>

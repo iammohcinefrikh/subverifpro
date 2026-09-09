@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DossierStatus } from '../../types/auth';
+import type { ComplianceCheck } from '../../services/complianceCheckService';
 import { Check, AlertTriangle, XCircle, Award } from 'lucide-react';
 import { KhatemSeal, useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
@@ -7,41 +8,79 @@ interface DossierTimelineProps {
   statut: DossierStatus;
   dateSoumission: string;
   decisionDate?: string;
+  complianceCheck?: ComplianceCheck | null;
 }
 
 export const DossierTimeline: React.FC<DossierTimelineProps> = ({
   statut,
   dateSoumission,
-  decisionDate
+  decisionDate,
+  complianceCheck,
 }) => {
   const { primaryColor } = useMoroccanTheme();
+
+  // Date de soumission formatée (ex : 09 septembre 2026)
+  const formattedDateSoumission = new Date(dateSoumission).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Date de vérification des pièces
+  const verificationDateRaw =
+    complianceCheck?.checked_at || complianceCheck?.updated_at || complianceCheck?.created_at || dateSoumission;
+  const formattedDateVerification = new Date(verificationDateRaw).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  // Statut de vérification des pièces normalisé (supporte 'completed', 'COMPLETED', 'CONFORME', 'VALIDATED', etc.)
+  const complianceStatusUpper = (complianceCheck?.status || '').toUpperCase().trim();
+  const isComplianceCompleted = Boolean(
+    ['COMPLETED', 'COMPLETE', 'CONFORME', 'VALIDATED', 'VALIDE', 'VERIFIE', 'VERIFIÉ'].includes(complianceStatusUpper) ||
+    (complianceCheck?.completeness_rate !== undefined && Number(complianceCheck.completeness_rate) >= 100) ||
+    (complianceCheck && complianceCheck.missing_count === 0 && (complianceCheck.present_count || 0) > 0) ||
+    statut === 'en_cours_examen' ||
+    statut === 'valide'
+  );
+
+  const isComplianceIncomplete = Boolean(
+    complianceCheck &&
+    !isComplianceCompleted &&
+    (
+      ['INCOMPLETE', 'NON_CONFORME', 'MANQUANT'].includes(complianceStatusUpper) ||
+      complianceCheck.missing_count > 0 ||
+      (complianceCheck.completeness_rate !== undefined && Number(complianceCheck.completeness_rate) < 100)
+    )
+  );
 
   const steps = [
     {
       id: 1,
       name: 'Dépôt du dossier',
-      detail: new Date(dateSoumission).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      }),
+      detail: formattedDateSoumission,
       state: 'done' as const
     },
     {
       id: 2,
       name: 'Vérification des pièces',
-      detail:
-        statut === 'documents_manquants'
-          ? 'Compléments requis à régulariser'
-          : statut === 'en_attente'
-          ? 'En attente d’attribution'
-          : 'Toutes les pièces conformes',
-      state:
-        statut === 'documents_manquants'
-          ? ('warning' as const)
-          : statut === 'en_attente'
-          ? ('active' as const)
-          : ('done' as const)
+      detail: isComplianceCompleted
+        ? `Vérifié le ${formattedDateVerification}`
+        : isComplianceIncomplete
+        ? `${complianceCheck?.missing_count || 'Pièces'} manquante(s) à régulariser`
+        : complianceCheck?.status
+        ? `Contrôle de conformité : ${complianceCheck.status}`
+        : statut === 'documents_manquants'
+        ? 'Compléments requis à régulariser'
+        : 'En attente d’attribution',
+      state: isComplianceCompleted
+        ? ('done' as const)
+        : isComplianceIncomplete || statut === 'documents_manquants'
+        ? ('warning' as const)
+        : complianceStatusUpper === 'NON_CONFORME'
+        ? ('danger' as const)
+        : ('active' as const)
     },
     {
       id: 3,
@@ -51,12 +90,16 @@ export const DossierTimeline: React.FC<DossierTimelineProps> = ({
           ? 'Examen approfondi par la commission'
           : statut === 'valide' || statut === 'refuse'
           ? 'Instruction finalisée'
+          : isComplianceCompleted
+          ? 'En attente d’instruction par la commission'
           : 'Phase à venir',
       state:
         statut === 'en_cours_examen'
           ? ('active' as const)
           : statut === 'valide' || statut === 'refuse'
           ? ('done' as const)
+          : isComplianceCompleted
+          ? ('active' as const)
           : ('upcoming' as const)
     },
     {
@@ -89,7 +132,7 @@ export const DossierTimeline: React.FC<DossierTimelineProps> = ({
               Progression de l’Instruction
             </h2>
           </div>
-          <p className="text-xs text-sand-500 mt-0.5">
+          <p className="text-xs text-ink-800/80 font-medium mt-0.5">
             Fil conducteur officiel menant de la vérification préalable à la commission d'octroi.
           </p>
         </div>
@@ -141,7 +184,7 @@ export const DossierTimeline: React.FC<DossierTimelineProps> = ({
 
                 <div className="pt-1">
                   <h3 className="text-xs font-bold text-indigo-950">{s.name}</h3>
-                  <p className="text-[11px] text-sand-500 mt-0.5">{s.detail}</p>
+                  <p className="text-[11px] text-ink-800/80 font-medium mt-0.5">{s.detail}</p>
                 </div>
               </div>
             </div>

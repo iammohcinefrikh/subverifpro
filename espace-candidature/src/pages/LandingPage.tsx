@@ -2,14 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
-  FileCheck2,
   Landmark,
   Sprout,
   Cpu,
   Building2,
   ArrowUpRight,
   Lock,
-  ScanLine,
   ListChecks,
   CheckCircle2,
 } from 'lucide-react';
@@ -17,10 +15,10 @@ import { useAuth } from '../context/useAuth';
 import {
   ZelligePattern,
   Frieze,
-  BabPanel,
   KhatemSeal,
   useMoroccanTheme,
 } from '../components/moroccan/MoroccanPatterns';
+import { OcrPreviewCard } from '../components/documents/OcrPreviewCard';
 
 const programs = [
   {
@@ -81,8 +79,8 @@ export const LandingPage: React.FC = () => {
           1. HERO SECTION
       ------------------------------------------------------------- */}
       <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 grid md:grid-cols-12 gap-12 items-center overflow-hidden">
-        {/* Trame Zellige géométrique en filigrane (opacité 5%) */}
-        <ZelligePattern id="zel-hero" color={primaryColor} opacity={0.05} />
+        {/* Trame Zellige géométrique en filigrane (opacité 6% : 5-7%) */}
+        <ZelligePattern id="zel-hero" color={primaryColor} opacity={0.06} />
 
         {/* Colonne gauche : Titre d'État & Appel à l'action */}
         <div className="relative md:col-span-7 space-y-6 text-left">
@@ -147,64 +145,9 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Colonne droite : Cadre monumental BabPanel & Vitrine OCR */}
-        <div className="relative md:col-span-5 flex justify-center">
-          <BabPanel className="w-full max-w-[340px] sm:max-w-[360px]">
-            <div className="px-6 pt-10 pb-8 text-white space-y-6">
-              <div className="flex items-center justify-between border-b border-gold-400/20 pb-4">
-                <div className="flex items-center gap-2 text-gold-400">
-                  <ScanLine className="w-4 h-4 text-gold-400 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    Contrôle Numérique Immédiat
-                  </span>
-                </div>
-                <KhatemSeal size={20} fill="#1A2B4C" stroke="#C9962E" strokeWidth={1.5} />
-              </div>
-
-              {/* Fausse simulation de document en cours d'extraction */}
-              <div className="bg-indigo-950/80 rounded-xl p-4 border border-gold-400/20 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-sand-300 font-mono">RELEVE_BANCAIRE_RIB.pdf</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                    99.4% confiance
-                  </span>
-                </div>
-
-                {/* Barres de balayage laser / progression */}
-                <div className="space-y-2 pt-1">
-                  <div className="h-1.5 rounded-full bg-gold-400/20 overflow-hidden">
-                    <div className="h-full bg-gold-400 rounded-full w-full animate-pulse" />
-                  </div>
-                  <div className="h-1.5 rounded-full bg-gold-400/20 overflow-hidden">
-                    <div className="h-full bg-gold-400/80 rounded-full w-4/5" />
-                  </div>
-                  <div className="h-1.5 rounded-full bg-gold-400/20 overflow-hidden">
-                    <div className="h-full bg-gold-400/60 rounded-full w-3/5" />
-                  </div>
-                </div>
-
-                {/* Métadonnées extraites */}
-                <div className="grid grid-cols-2 gap-2 pt-2 text-[11px]">
-                  <div className="p-2 rounded-lg bg-indigo-900/60 border border-gold-400/15">
-                    <span className="text-sand-400 block text-[9px] uppercase font-bold">IBAN Maroc</span>
-                    <span className="text-gold-300 font-mono font-medium">MA64 0115...</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-indigo-900/60 border border-gold-400/15">
-                    <span className="text-sand-400 block text-[9px] uppercase font-bold">Numéro ICE</span>
-                    <span className="text-gold-300 font-mono font-medium">00249811...</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 text-xs border-t border-gold-400/20">
-                <span className="text-sand-300">Classification automatique</span>
-                <span className="inline-flex items-center gap-1 text-gold-400 font-semibold">
-                  <FileCheck2 className="w-4 h-4 text-emerald-400" />
-                  <span>RIB Conforme</span>
-                </span>
-              </div>
-            </div>
-          </BabPanel>
+        {/* Colonne droite : Carte Contrôle Numérique Immédiat (OCR Live Card épurée + Cachet Tabaâ) */}
+        <div className="relative md:col-span-5 flex justify-center items-center">
+          <OcrPreviewCard />
         </div>
       </section>
 
@@ -257,7 +200,7 @@ export const LandingPage: React.FC = () => {
           3. PROGRAMMES NATIONAUX (CADRES FACON TAMPONS DE CUIR)
       ------------------------------------------------------------- */}
       <section id="programmes" className="relative py-20 bg-indigo-950 text-white overflow-hidden text-left">
-        <ZelligePattern id="zel-prog" color={accentColor} opacity={0.04} />
+        <ZelligePattern id="zel-prog" color={accentColor} opacity={0.06} />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl mb-12 space-y-3">

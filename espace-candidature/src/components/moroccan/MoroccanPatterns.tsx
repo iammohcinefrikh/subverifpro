@@ -226,12 +226,14 @@ export const BabPanel: React.FC<{
   innerClassName?: string;
   accentColor?: string;
   themeType?: 'dark' | 'light';
+  showArchLines?: boolean;
 }> = ({
   children,
   className = '',
   innerClassName = '',
   accentColor = '#C9962E',
   themeType = 'dark',
+  showArchLines = true,
 }) => {
   const { primaryColor } = useMoroccanTheme();
 
@@ -246,22 +248,21 @@ export const BabPanel: React.FC<{
     >
       <div
         className={`relative overflow-hidden ${
-          themeType === 'dark' ? 'bg-indigo-900 text-white' : 'bg-sand-50 text-ink-900'
+          themeType === 'dark' ? 'bg-[#0c1527] text-white' : 'bg-sand-50 text-ink-900'
         } ${innerClassName}`}
         style={{
           borderRadius: '999px 999px 18px 18px',
-          border: `1.5px solid ${accentColor}55`,
+          border: `1.5px solid ${accentColor}40`,
         }}
       >
-        {/* Double arche concentrique décorative en haut */}
-        <div
-          className="absolute -top-10 left-1/2 -translate-x-1/2 w-64 h-36 border border-gold-400/20 rounded-full pointer-events-none"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -top-6 left-1/2 -translate-x-1/2 w-48 h-28 border border-gold-400/30 rounded-full pointer-events-none"
-          aria-hidden="true"
-        />
+        {/* Liseré d'archivolte concentrique continu qui épouse harmonieusement le Bab */}
+        {showArchLines && (
+          <div
+            className="absolute inset-2 pointer-events-none border border-gold-400/15"
+            style={{ borderRadius: '999px 999px 12px 12px' }}
+            aria-hidden="true"
+          />
+        )}
         {children}
       </div>
     </div>

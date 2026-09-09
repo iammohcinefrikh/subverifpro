@@ -5,6 +5,12 @@ import { DossierTimeline } from '../components/dashboard/DossierTimeline';
 import { MissingDocumentsCard } from '../components/dashboard/MissingDocumentsCard';
 import { DossierDocumentsTable } from '../components/dashboard/DossierDocumentsTable';
 import {
+  fetchComplianceCheckFromDb,
+  buildInitialComplianceCheckFromUser,
+  type ComplianceCheck,
+} from '../services/complianceCheckService';
+import { updateCandidateDossier } from '../services/mockAuthService';
+import {
   Calendar,
   Coins,
   Copy,
@@ -31,6 +37,59 @@ export const DashboardPage: React.FC = () => {
   const [copied, setCopied] = React.useState(false);
   const [showJwtModal, setShowJwtModal] = React.useState(false);
   const [tokenCopied, setTokenCopied] = React.useState(false);
+  const [complianceCheck, setComplianceCheck] = React.useState<ComplianceCheck | null>(null);
+
+  // Charger le contrôle de conformité depuis la table public.compliance_checks
+  const loadCompliance = React.useCallback(async (_isSilent = false) => {
+    if (!user) return;
+    try {
+      let check = await fetchComplianceCheckFromDb(user.id, user.dossier.dossier_id);
+      if (!check) {
+        // Fallback local uniquement sans écraser la base
+        check = buildInitialComplianceCheckFromUser(user) as ComplianceCheck;
+      }
+      setComplianceCheck(check);
+
+      // Si compliance_checks a un statut complété / validé, synchroniser automatiquement le statut du dossier
+      if (check) {
+        const checkStatus = (check.status || '').toUpperCase().trim();
+        const isComplete =
+          ['COMPLETED', 'COMPLETE', 'CONFORME', 'VALIDATED', 'VALIDE', 'VERIFIE'].includes(checkStatus) ||
+          Number(check.completeness_rate) >= 100;
+
+        if (isComplete && user.dossier.statut === 'en_attente') {
+          updateCandidateDossier(user.id, { statut: 'en_cours_examen' });
+          refreshUser();
+        }
+      }
+    } catch (err) {
+      console.warn('[Dashboard] Erreur chargement compliance_checks:', err);
+    }
+  }, [user, refreshUser]);
+
+  React.useEffect(() => {
+    if (!user) return;
+    loadCompliance();
+
+    // Synchronisation automatique en continu toutes les 3 secondes
+    const interval = setInterval(() => {
+      loadCompliance(true);
+    }, 3000);
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadCompliance(true);
+      }
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
+  }, [user, loadCompliance]);
 
   // Redirection protégée
   React.useEffect(() => {
@@ -229,16 +288,23 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Ruelle de Médina : Timeline de Statut */}
+      {/* 2. Ruelle de Médina : Timeline de Statut avec étape Vérification des pièces synchronisée */}
       <DossierTimeline
         statut={user.dossier.statut}
         dateSoumission={user.dossier.date_soumission}
         decisionDate={user.dossier.decision_date}
+        complianceCheck={complianceCheck}
       />
 
       {/* 3. Section Pièces Manquantes & Régularisation */}
       {user.dossier.statut === 'documents_manquants' && (
-        <MissingDocumentsCard user={user} onDossierUpdated={refreshUser} />
+        <MissingDocumentsCard
+          user={user}
+          onDossierUpdated={async () => {
+            refreshUser();
+            await loadCompliance();
+          }}
+        />
       )}
 
       {/* Si dossier en cours d'examen */}

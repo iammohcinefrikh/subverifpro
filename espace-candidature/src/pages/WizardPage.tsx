@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { Stepper } from '../components/layout/Stepper';
 import { Step1Applicant } from '../components/steps/Step1Applicant';
 import { Step2Project } from '../components/steps/Step2Project';
@@ -12,6 +13,14 @@ import { useAuth } from '../context/useAuth';
 import { registerWizardSubmissionAsCandidate } from '../services/mockAuthService';
 import { MOCK_CANDIDATES } from '../config/mockCandidates';
 import { ZelligePattern, useMoroccanTheme } from '../components/moroccan/MoroccanPatterns';
+
+const STEP_CONFIG = [
+  { id: 1, title: 'Profil demandeur', nextLabel: 'le Projet' },
+  { id: 2, title: 'Projet', nextLabel: 'le Budget' },
+  { id: 3, title: 'Budget', nextLabel: 'les Pièces & OCR' },
+  { id: 4, title: 'Pièces & OCR', nextLabel: 'le Récapitulatif' },
+  { id: 5, title: 'Récapitulatif & Soumission', nextLabel: 'la transmission' }
+];
 
 export const WizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -94,6 +103,8 @@ export const WizardPage: React.FC = () => {
   }
 
   const { primaryColor } = useMoroccanTheme();
+  const currentStepConfig = STEP_CONFIG[currentStep - 1] || STEP_CONFIG[0];
+  const nextStepConfig = STEP_CONFIG[currentStep] || null;
 
   return (
     <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8 relative">
@@ -106,6 +117,72 @@ export const WizardPage: React.FC = () => {
         onStepClick={handleJumpToStep}
         completedSteps={completedSteps}
       />
+
+      {/* Barre d'action rapide haute (immédiatement visible sous le Stepper) */}
+      <div className="bg-sand-50/90 backdrop-blur-sm rounded-xl border border-sand-300 p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="px-2.5 py-1 rounded-lg text-xs font-extrabold text-white shadow-xs tracking-wider uppercase"
+            style={{ backgroundColor: primaryColor }}
+          >
+            Étape {currentStep} / 5
+          </span>
+          <div>
+            <h1 className="text-sm sm:text-base font-extrabold text-indigo-950 leading-tight">
+              {currentStepConfig.title}
+            </h1>
+            <p className="text-[11px] text-sand-600 mt-0.5">
+              {currentStep < 5
+                ? `Suivant : ${nextStepConfig?.title}`
+                : 'Dernière étape avant la soumission'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={() => handleJumpToStep(currentStep - 1)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-sand-700 hover:text-indigo-950 bg-white hover:bg-sand-100 rounded-lg transition-colors cursor-pointer border border-sand-300 shadow-xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Précédent</span>
+            </button>
+          )}
+
+          {currentStep < 5 ? (
+            <button
+              type={currentStep === 4 ? 'button' : 'submit'}
+              form={currentStep === 4 ? undefined : 'wizard-active-form'}
+              onClick={currentStep === 4 ? handleProceedFromDocuments : undefined}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs sm:text-sm font-bold text-white rounded-lg shadow-sm hover:brightness-105 active:scale-95 transition-all cursor-pointer ring-2 ring-terracotta-400/30"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <span>Étape suivante →</span>
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="wizard-active-form"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm active:scale-95 transition-all cursor-pointer ring-2 ring-emerald-400/30"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Transmission...</span>
+                </>
+              ) : (
+                <>
+                  <span>Soumettre le dossier</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Step Content Container */}
       <div className="transition-all duration-300">

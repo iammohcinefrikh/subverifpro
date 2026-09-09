@@ -78,14 +78,17 @@ export const Stepper: React.FC<StepperProps> = ({
             const isCurrent = step.id === currentStep;
 
             return (
-              <div
+              <button
                 key={step.id}
-                className={`transition-all duration-300 rounded-full ${
+                type="button"
+                onClick={() => onStepClick && onStepClick(step.id)}
+                title={`Aller à l'étape ${step.id}: ${step.title}`}
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
                   isCurrent
-                    ? 'w-6 h-2 bg-terracotta-500 shadow-sm'
+                    ? 'w-6 h-2.5 bg-terracotta-500 shadow-sm'
                     : isCompleted
-                    ? 'w-2.5 h-2.5 bg-emerald-600'
-                    : 'w-2 h-2 bg-sand-300'
+                    ? 'w-2.5 h-2.5 bg-emerald-600 hover:scale-125'
+                    : 'w-2.5 h-2.5 bg-sand-300 hover:scale-125'
                 }`}
                 style={isCurrent ? { backgroundColor: primaryColor } : {}}
               />
@@ -108,17 +111,14 @@ export const Stepper: React.FC<StepperProps> = ({
           {steps.map((step) => {
             const isCompleted = step.id < currentStep || completedSteps[step.id - 1];
             const isCurrent = step.id === currentStep;
-            const isAccessible = step.id <= currentStep || completedSteps[step.id - 2];
 
             return (
               <li key={step.id} className="relative flex flex-col items-center text-center group">
                 <button
                   type="button"
-                  onClick={() => isAccessible && onStepClick && onStepClick(step.id)}
-                  disabled={!isAccessible}
-                  className={`flex flex-col items-center w-full focus:outline-none transition-all ${
-                    isAccessible ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                  }`}
+                  onClick={() => onStepClick && onStepClick(step.id)}
+                  title={`Cliquer pour aller à l'étape ${step.id} : ${step.title}`}
+                  className="flex flex-col items-center w-full focus:outline-none transition-all cursor-pointer hover:scale-102"
                 >
                   {/* Module géométrique (Étoile / Module scellé) */}
                   <div

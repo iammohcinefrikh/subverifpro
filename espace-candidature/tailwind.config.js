@@ -63,8 +63,11 @@ export default {
           100: '#FAF5EC', // Fond par défaut : Pisé, murs chauds de médina
           200: '#F1E7D3', // Fond profond / cartes d'accent
           300: '#E5D5B7',
-          400: '#D4C097',
-          500: '#C0A775',
+          400: '#B89F77',
+          500: '#5C4A32', // Assombri : teinte pisé/cuir contrastée, lisible sur fond sable et blanc
+          600: '#4A3B27',
+          700: '#382C1D',
+          800: '#2A2114',
         },
         ink: {
           800: '#382B20',
