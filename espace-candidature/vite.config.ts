@@ -304,16 +304,62 @@ function dbApiPlugin(): Plugin {
             const isUuid = (str: any) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
             const candId = isUuid(data.candidate_id) ? data.candidate_id : null;
             const checkId = isUuid(data.id) ? data.id : null;
-            const appId = isUuid(data.application_id) ? data.application_id : null;
+            const rawAppId = isUuid(data.application_id) ? data.application_id : null;
 
-            // 1. Chercher un enregistrement existant dans public.compliance_checks
+            // A. Résoudre l'application_id canonique garanti dans public.applications
+            let canonicalAppId = null;
+
+            // 1. Si un UUID est fourni, vérifier qu'il existe dans applications(application_id)
+            if (rawAppId) {
+              const checkApp = await client.query(
+                'SELECT application_id FROM public.applications WHERE application_id = $1 LIMIT 1',
+                [rawAppId]
+              ).catch(() => ({ rows: [] }));
+              if (checkApp.rows.length > 0) {
+                canonicalAppId = checkApp.rows[0].application_id;
+              }
+            }
+
+            // 2. Si non trouvé, chercher par candidate_id
+            if (!canonicalAppId && candId) {
+              const checkByCand = await client.query(
+                'SELECT application_id FROM public.applications WHERE candidate_id = $1 ORDER BY created_at DESC LIMIT 1',
+                [candId]
+              ).catch(() => ({ rows: [] }));
+              if (checkByCand.rows.length > 0) {
+                canonicalAppId = checkByCand.rows[0].application_id;
+              }
+            }
+
+            // 3. Si non trouvé, récupérer l'application parente active la plus récente
+            if (!canonicalAppId) {
+              const defaultApp = await client.query(
+                'SELECT application_id FROM public.applications ORDER BY created_at DESC LIMIT 1'
+              ).catch(() => ({ rows: [] }));
+              if (defaultApp.rows.length > 0) {
+                canonicalAppId = defaultApp.rows[0].application_id;
+              }
+            }
+
+            // 4. Si aucune application n'existe, créer la ligne parente applications AVANT pour respecter fk_check_application
+            if (!canonicalAppId) {
+              const newAppId = crypto.randomUUID();
+              await client.query(`
+                INSERT INTO public.applications (
+                  id, application_id, program_id, candidate_id, status, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, 'SUBMITTED', NOW(), NOW())
+              `, [crypto.randomUUID(), newAppId, data.program_id || 'prog-forsa', candId]);
+              canonicalAppId = newAppId;
+            }
+
+            // B. Chercher l'enregistrement existant dans public.compliance_checks pour préserver son UUID
             let existingRow = null;
             if (checkId) {
               const r = await client.query('SELECT * FROM public.compliance_checks WHERE id = $1 LIMIT 1', [checkId]);
               if (r.rows.length > 0) existingRow = r.rows[0];
             }
-            if (!existingRow && appId) {
-              const r = await client.query('SELECT * FROM public.compliance_checks WHERE application_id = $1 LIMIT 1', [appId]);
+            if (!existingRow && canonicalAppId) {
+              const r = await client.query('SELECT * FROM public.compliance_checks WHERE application_id = $1 LIMIT 1', [canonicalAppId]);
               if (r.rows.length > 0) existingRow = r.rows[0];
             }
             if (!existingRow && candId) {
@@ -321,7 +367,6 @@ function dbApiPlugin(): Plugin {
               if (r.rows.length > 0) existingRow = r.rows[0];
             }
             if (!existingRow) {
-              // Si aucun match direct, récupérer le dernier enregistrement disponible
               const r = await client.query('SELECT * FROM public.compliance_checks ORDER BY updated_at DESC LIMIT 1');
               if (r.rows.length > 0) existingRow = r.rows[0];
             }
@@ -341,7 +386,7 @@ function dbApiPlugin(): Plugin {
 
             let resultRow;
             if (existingRow) {
-              // Mise à jour de l'enregistrement existant ciblé
+              // Mise à jour sur l'ID existant pour garantir que l'UUID ne change JAMAIS
               const updateQuery = `
                 UPDATE public.compliance_checks SET
                   completeness_rate = $1,
@@ -379,12 +424,9 @@ function dbApiPlugin(): Plugin {
               const dbRes = await client.query(updateQuery, updateValues);
               resultRow = dbRes.rows[0];
             } else {
-              // Insertion d'un nouvel enregistrement avec résolutions FK valides
+              // Insertion avec l'application_id canonique garanti
               const progRes = await client.query('SELECT id FROM public.programs LIMIT 1').catch(() => ({ rows: [] }));
               const validProg = progRes.rows[0]?.id || 'prog-forsa';
-
-              const appRes = await client.query('SELECT id FROM public.applications LIMIT 1').catch(() => ({ rows: [] }));
-              const validApp = appId || appRes.rows[0]?.id || crypto.randomUUID();
 
               const insertQuery = `
                 INSERT INTO public.compliance_checks (
@@ -408,7 +450,7 @@ function dbApiPlugin(): Plugin {
               `;
 
               const insertValues = [
-                validApp,
+                canonicalAppId,
                 data.program_id || validProg,
                 data.completeness_rate ?? 0,
                 data.status || 'INCOMPLETE',
