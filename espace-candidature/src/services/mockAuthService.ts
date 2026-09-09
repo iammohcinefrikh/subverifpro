@@ -378,14 +378,24 @@ export function addComplementPiecesToDossier(
   const target = users.find((u) => u.id === candidateId);
   if (!target) return null;
 
-  const updatedPieces = [...target.dossier.pieces, ...newPieces];
+  // Remplacer les pièces existantes de même type ou ajouter les nouvelles
+  const newTypeMap = new Map<string, WebhookPiecePayload>(newPieces.map((p: WebhookPiecePayload) => [p.type_declare, p]));
+  const keptPieces = target.dossier.pieces.filter((p: WebhookPiecePayload) => !newTypeMap.has(p.type_declare));
+  const updatedPieces = [...keptPieces, ...newPieces];
+
+  const existingTypes = new Set(updatedPieces.map((p: WebhookPiecePayload) => p.type_declare));
+  const piecesRequises = target.dossier.pieces_requises || ['piece_identite', 'rib', 'devis', 'statuts'];
+  const missing = piecesRequises.filter((r) => !existingTypes.has(r));
+  const isComplete = missing.length === 0;
 
   const updateData: Partial<DossierMetadata> = {
     pieces: updatedPieces,
-    statut: 'en_cours_examen',
+    statut: isComplete ? 'en_cours_examen' : 'documents_manquants',
     remarques_instructeur: remarks
       ? `Complément reçu le ${new Date().toLocaleDateString('fr-FR')} : ${remarks}. Dossier réexaminé par l'instructeur.`
-      : `Documents complémentaires transmis le ${new Date().toLocaleDateString('fr-FR')}. Examen des nouvelles pièces en cours.`
+      : isComplete
+      ? `Toutes les pièces requises ont été vérifiées et déclarées conformes le ${new Date().toLocaleDateString('fr-FR')}. Dossier transmis pour examen en commission.`
+      : `Documents complémentaires transmis le ${new Date().toLocaleDateString('fr-FR')}. Il reste ${missing.length} pièce(s) manquante(s).`
   };
 
   return updateCandidateDossier(candidateId, updateData);

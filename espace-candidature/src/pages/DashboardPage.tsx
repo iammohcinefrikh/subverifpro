@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   KeyRound,
   Building2,
+  FileText,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { decodeJwtClaims } from '../services/jwtService';
@@ -36,6 +37,7 @@ export const DashboardPage: React.FC = () => {
   const { primaryColor } = useMoroccanTheme();
   const [copied, setCopied] = React.useState(false);
   const [showJwtModal, setShowJwtModal] = React.useState(false);
+  const [showComplementCard, setShowComplementCard] = React.useState(false);
   const [tokenCopied, setTokenCopied] = React.useState(false);
   const [complianceCheck, setComplianceCheck] = React.useState<ComplianceCheck | null>(null);
 
@@ -55,9 +57,10 @@ export const DashboardPage: React.FC = () => {
         const checkStatus = (check.status || '').toUpperCase().trim();
         const isComplete =
           ['COMPLETED', 'COMPLETE', 'CONFORME', 'VALIDATED', 'VALIDE', 'VERIFIE'].includes(checkStatus) ||
-          Number(check.completeness_rate) >= 100;
+          Number(check.completeness_rate) >= 100 ||
+          (check.missing_count === 0 && Number(check.present_count) > 0);
 
-        if (isComplete && user.dossier.statut === 'en_attente') {
+        if (isComplete && (user.dossier.statut === 'en_attente' || user.dossier.statut === 'documents_manquants')) {
           updateCandidateDossier(user.id, { statut: 'en_cours_examen' });
           refreshUser();
         }
@@ -194,7 +197,17 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowComplementCard((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-sand-100 text-indigo-950 border border-sand-300 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              title="Modifier ou ajouter des pièces justificatives au dossier"
+            >
+              <FileText className="w-3.5 h-3.5 text-terracotta-600" />
+              <span>{showComplementCard ? 'Masquer ajout' : 'Compléter / Modifier pièces'}</span>
+            </button>
+
             {jwtToken && (
               <button
                 type="button"
@@ -297,7 +310,9 @@ export const DashboardPage: React.FC = () => {
       />
 
       {/* 3. Section Pièces Manquantes & Régularisation */}
-      {user.dossier.statut === 'documents_manquants' && (
+      {(user.dossier.statut === 'documents_manquants' ||
+        showComplementCard ||
+        (complianceCheck && Number(complianceCheck.missing_count) > 0)) && (
         <MissingDocumentsCard
           user={user}
           onDossierUpdated={async () => {
@@ -334,7 +349,14 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* 4. Inventaire Documentaire */}
-      <DossierDocumentsTable user={user} />
+      <DossierDocumentsTable
+        user={user}
+        onDossierUpdated={async () => {
+          refreshUser();
+          await loadCompliance();
+        }}
+        onTriggerComplement={() => setShowComplementCard(true)}
+      />
 
       {/* Modal d'inspection JWT */}
       {showJwtModal && jwtToken && (
