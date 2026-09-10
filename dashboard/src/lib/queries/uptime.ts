@@ -118,15 +118,17 @@ export async function getUptimeData(): Promise<UptimePageData> {
       serviceStats.set(s, current)
     })
 
-    // If no logs, provide default service definitions
-    const knownServices = serviceStats.size > 0
-      ? Array.from(serviceStats.entries())
-      : [
-          ["ingestion-service", { total: 100, errors: 0 }],
-          ["compliance-engine", { total: 120, errors: 0 }],
-          ["eligibility-evaluator", { total: 110, errors: 1 }],
-          ["ai-analysis-pipeline", { total: 95, errors: 0 }],
-        ]
+    const defaultServices: [string, { total: number; errors: number }][] = [
+      ["ingestion-service",      { total: 100, errors: 0 }],
+      ["compliance-engine",      { total: 120, errors: 0 }],
+      ["eligibility-evaluator",  { total: 110, errors: 1 }],
+      ["ai-analysis-pipeline",   { total: 95,  errors: 0 }],
+    ]
+
+    const knownServices: [string, { total: number; errors: number }][] =
+      serviceStats.size > 0
+        ? Array.from(serviceStats.entries())
+        : defaultServices
 
     const services: ServiceStatusItem[] = knownServices.map(([service, stat]) => {
       const errorRate = stat.total > 0 ? stat.errors / stat.total : 0
