@@ -6,8 +6,7 @@ import {
   SparklesIcon,
   AlertCircleIcon,
   CheckmarkCircle02Icon,
-  Search01Icon,
-  Coins01Icon,
+  Search01Icon
 } from "@hugeicons/core-free-icons"
 
 interface AiSynthesisProps {
@@ -27,7 +26,7 @@ export function AiSynthesis({ aiAnalysis }: AiSynthesisProps) {
           </div>
         </CardHeader>
         <CardContent className="p-6 text-center text-xs text-muted-foreground">
-          Aucune analyse d'intelligence artificielle n'a encore été générée pour ce dossier.
+          Aucune analyse d&apos;intelligence artificielle n&apos;a encore été générée pour ce dossier.
         </CardContent>
       </Card>
     )

@@ -23,7 +23,7 @@ export default async function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-            Vue d'ensemble opérationnelle
+            Vue d&apos;ensemble opérationnelle
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Suivi en temps réel des demandes, conformité documentaire et dossiers prioritaires à instruire.

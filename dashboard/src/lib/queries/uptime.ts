@@ -155,7 +155,7 @@ export async function getUptimeData(): Promise<UptimePageData> {
 
     // Compute gate durations from service_metrics
     let g1Sum = 0, g2Sum = 0, g3Sum = 0, g4Sum = 0, g5Sum = 0, totalSum = 0
-    let count = metricsRaw.length
+    const count = metricsRaw.length
 
     metricsRaw.forEach((m) => {
       g1Sum += m.g1DurationMs || 0

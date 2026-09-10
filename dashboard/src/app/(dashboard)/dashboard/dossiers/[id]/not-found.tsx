@@ -13,12 +13,12 @@ export default function DossierNotFound() {
         Dossier introuvable
       </h2>
       <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
-        L'identifiant du dossier demandé n'existe pas ou a été supprimé de la base de données.
+        L&apos;identifiant du dossier demandé n&apos;existe pas ou a été supprimé de la base de données.
       </p>
       <Button asChild variant="outline" size="sm" className="h-8 text-xs gap-1.5">
         <Link href="/dashboard">
           <HugeiconsIcon icon={ArrowLeft02Icon} size={14} strokeWidth={2} />
-          Retour à la vue d'ensemble
+          Retour à la vue d&apos;ensemble
         </Link>
       </Button>
     </div>

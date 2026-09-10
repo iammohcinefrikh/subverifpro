@@ -5,8 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Clock01Icon,
   Alert02Icon,
-  CheckmarkCircle02Icon,
-  File01Icon,
+  File01Icon
 } from "@hugeicons/core-free-icons"
 
 interface ComplementsSectionProps {
@@ -31,7 +30,7 @@ export function ComplementsSection({ complements }: ComplementsSectionProps) {
       <CardContent className="p-4 space-y-3">
         {complements.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
-            Aucun complément d'information n'a été demandé pour ce dossier.
+            Aucun complément d&apos;information n&apos;a été demandé pour ce dossier.
           </div>
         ) : (
           <div className="space-y-2.5">

@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Activity01Icon,
   CheckmarkCircle02Icon,
-  Cancel01Icon,
   AlertCircleIcon,
   FileValidationIcon,
   ArrowRight01Icon,
@@ -124,7 +122,7 @@ export default async function UptimePage() {
             <div className="flex items-center gap-2">
               <HugeiconsIcon icon={Clock01Icon} size={16} className="text-stone-700 dark:text-stone-300" />
               <CardTitle className="text-xs font-semibold tracking-tight uppercase text-stone-900 dark:text-stone-100">
-                Temps moyen d'exécution par étape du pipeline (Service Metrics)
+                Temps moyen d&apos;exécution par étape du pipeline (Service Metrics)
               </CardTitle>
             </div>
             <span className="text-xs font-mono text-muted-foreground">

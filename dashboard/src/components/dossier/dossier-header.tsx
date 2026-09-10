@@ -8,8 +8,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowLeft02Icon,
   AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  Clock01Icon,
+  CheckmarkCircle02Icon
 } from "@hugeicons/core-free-icons"
 
 interface DossierHeaderProps {

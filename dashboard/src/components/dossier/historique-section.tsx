@@ -3,10 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import type { DossierDetailData } from "@/lib/queries/dossier"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Clock01Icon,
-  Activity01Icon,
-  CheckmarkCircle02Icon,
-  UserIcon,
+  Activity01Icon
 } from "@hugeicons/core-free-icons"
 
 interface HistoriqueSectionProps {
@@ -31,7 +28,7 @@ export function HistoriqueSection({ history }: HistoriqueSectionProps) {
       <CardContent className="p-4">
         {history.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
-            Aucun événement d'instruction enregistré pour le moment.
+            Aucun événement d&apos;instruction enregistré pour le moment.
           </div>
         ) : (
           <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-px before:bg-stone-200 dark:before:bg-stone-800">

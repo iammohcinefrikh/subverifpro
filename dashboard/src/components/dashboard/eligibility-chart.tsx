@@ -5,7 +5,7 @@ import {
   CheckmarkCircle02Icon,
   Cancel01Icon,
   AlertCircleIcon,
-  Search01Icon,
+  Search01Icon
 } from "@hugeicons/core-free-icons"
 
 interface EligibilityChartProps {
@@ -35,7 +35,7 @@ export function EligibilityChart({ data }: EligibilityChartProps) {
       <CardHeader className="p-0 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            Aperçu de l'éligibilité
+            Aperçu de l&apos;éligibilité
           </CardTitle>
           <span className="text-[11px] font-mono text-muted-foreground">
             {total} évalués

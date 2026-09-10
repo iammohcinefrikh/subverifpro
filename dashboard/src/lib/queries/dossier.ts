@@ -87,6 +87,8 @@ export interface DossierDetailData {
   }>
 }
 
+type ComplianceDocEntry = string | Record<string, unknown>
+
 export async function getDossierDetail(id: string): Promise<DossierDetailData | null> {
   try {
     // Lookup by application_id (UUID) or id (UUID)
@@ -182,7 +184,7 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
 
     // Parse JSON documents safely
     const presentDocs = Array.isArray(comp?.presentDocuments)
-      ? (comp.presentDocuments as any[]).map((d) => {
+      ? (comp.presentDocuments as ComplianceDocEntry[]).map((d) => {
           const obj = d && typeof d === "object"
           const code = docKey(d)
           const label = code && requirementLabels.get(code)
@@ -195,7 +197,7 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
       : []
 
     const missingDocs = Array.isArray(comp?.missingDocuments)
-      ? (comp.missingDocuments as any[]).map((d) => {
+      ? (comp.missingDocuments as ComplianceDocEntry[]).map((d) => {
           const obj = d && typeof d === "object"
           const code = docKey(d)
           const label = code && requirementLabels.get(code)
@@ -207,7 +209,7 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
       : []
 
     const expiredDocs = Array.isArray(comp?.expiredDocuments)
-      ? (comp.expiredDocuments as any[]).map((d) => {
+      ? (comp.expiredDocuments as ComplianceDocEntry[]).map((d) => {
           const obj = d && typeof d === "object"
           const code = docKey(d)
           const label = code && requirementLabels.get(code)

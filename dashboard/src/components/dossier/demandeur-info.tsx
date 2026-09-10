@@ -2,13 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { DossierDetailData } from "@/lib/queries/dossier"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  UserIcon,
-  Building01Icon,
-  Coins01Icon,
-  Location01Icon,
-  Calendar01Icon,
-  Mail01Icon,
-  Call01Icon,
+  UserIcon
 } from "@hugeicons/core-free-icons"
 
 interface DemandeurInfoProps {
