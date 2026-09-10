@@ -185,37 +185,43 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
     // Parse JSON documents safely
     const presentDocs = Array.isArray(comp?.presentDocuments)
       ? (comp.presentDocuments as ComplianceDocEntry[]).map((d) => {
-          const obj = d && typeof d === "object"
+          const rec = d && typeof d === "object" && !Array.isArray(d)
+            ? (d as Record<string, unknown>)
+            : null
           const code = docKey(d)
-          const label = code && requirementLabels.get(code)
+          const label = code ? requirementLabels.get(code) : undefined
           return {
-            name: label ?? (obj ? d.name || d.label || "Document" : String(d)),
-            url: obj ? d.url : undefined,
-            date: obj ? d.date : undefined,
+            name: label ?? (rec ? String(rec.name ?? rec.label ?? "Document") : String(d)),
+            url:  rec && typeof rec.url  === "string" ? rec.url  : undefined,
+            date: rec && typeof rec.date === "string" ? rec.date : undefined,
           }
         })
       : []
 
     const missingDocs = Array.isArray(comp?.missingDocuments)
       ? (comp.missingDocuments as ComplianceDocEntry[]).map((d) => {
-          const obj = d && typeof d === "object"
+          const rec = d && typeof d === "object" && !Array.isArray(d)
+            ? (d as Record<string, unknown>)
+            : null
           const code = docKey(d)
-          const label = code && requirementLabels.get(code)
+          const label = code ? requirementLabels.get(code) : undefined
           return {
-            name: label ?? (obj ? d.name || d.label || "Document manquant" : String(d)),
-            type: obj ? d.type : undefined,
+            name: label ?? (rec ? String(rec.name ?? rec.label ?? "Document manquant") : String(d)),
+            type: rec && typeof rec.type === "string" ? rec.type : undefined,
           }
         })
       : []
 
     const expiredDocs = Array.isArray(comp?.expiredDocuments)
       ? (comp.expiredDocuments as ComplianceDocEntry[]).map((d) => {
-          const obj = d && typeof d === "object"
+          const rec = d && typeof d === "object" && !Array.isArray(d)
+            ? (d as Record<string, unknown>)
+            : null
           const code = docKey(d)
-          const label = code && requirementLabels.get(code)
+          const label = code ? requirementLabels.get(code) : undefined
           return {
-            name: label ?? (obj ? d.name || d.label || "Document expiré" : String(d)),
-            expiredDate: obj ? d.expiredDate : undefined,
+            name: label ?? (rec ? String(rec.name ?? rec.label ?? "Document expiré") : String(d)),
+            expiredDate: rec && typeof rec.expiredDate === "string" ? rec.expiredDate : undefined,
           }
         })
       : []
