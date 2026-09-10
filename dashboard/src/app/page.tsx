@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "@/lib/auth-client"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,12 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  FileValidationIcon,
-  AlertCircleIcon,
-} from "@hugeicons/core-free-icons"
+import { FileValidationIcon, AlertCircleIcon } from "@hugeicons/core-free-icons"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
@@ -30,10 +28,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await signIn.email({
-        email,
-        password,
-      })
+      const res = await signIn.email({ email, password })
 
       if (res?.error) {
         setError(res.error.message || "Identifiants invalides. Veuillez vérifier votre adresse e-mail et mot de passe.")
@@ -53,6 +48,84 @@ export default function LoginPage() {
     setPassword("Password123!")
   }
 
+  return (
+    <Card className="border border-stone-200 dark:border-stone-800 shadow-sm bg-card">
+      <CardHeader className="p-5 pb-3">
+        <CardTitle className="text-sm font-semibold">Connexion Instructeur</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">
+          Entrez vos identifiants pour accéder à votre espace de travail.
+        </CardDescription>
+      </CardHeader>
+
+      <form onSubmit={handleSubmit}>
+        <CardContent className="p-5 pt-0 space-y-3.5">
+          {error && (
+            <div className="p-2.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+              <HugeiconsIcon icon={AlertCircleIcon} size={15} className="shrink-0 mt-0.5 text-rose-600" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-medium">
+              Adresse e-mail
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="instructeur@subverif.pro"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              className="h-8 text-xs border-stone-300 dark:border-stone-700"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-xs font-medium">
+                Mot de passe
+              </Label>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="h-8 text-xs border-stone-300 dark:border-stone-700"
+            />
+          </div>
+        </CardContent>
+
+        <CardFooter className="p-5 pt-1 flex flex-col gap-2.5">
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-8 text-xs font-medium bg-stone-900 text-stone-50 hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 transition-colors"
+          >
+            {isLoading ? "Connexion en cours..." : "Se connecter"}
+          </Button>
+
+          <div className="w-full pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Compte de démonstration</span>
+            <button
+              type="button"
+              onClick={handleFillDemo}
+              className="text-primary hover:underline font-medium cursor-pointer"
+            >
+              Remplir automatiquement
+            </button>
+          </div>
+        </CardFooter>
+      </form>
+    </Card>
+  )
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-stone-100/60 dark:bg-stone-950 p-4 relative">
       <div className="absolute top-4 right-4">
@@ -74,79 +147,15 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <Card className="border border-stone-200 dark:border-stone-800 shadow-sm bg-card">
-          <CardHeader className="p-5 pb-3">
-            <CardTitle className="text-sm font-semibold">Connexion Instructeur</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Entrez vos identifiants pour accéder à votre espace de travail.
-            </CardDescription>
-          </CardHeader>
-
-          <form onSubmit={handleSubmit}>
-            <CardContent className="p-5 pt-0 space-y-3.5">
-              {error && (
-                <div className="p-2.5 rounded-md bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
-                  <HugeiconsIcon icon={AlertCircleIcon} size={15} className="shrink-0 mt-0.5 text-rose-600" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium">
-                  Adresse e-mail
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="instructeur@subverif.pro"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="h-8 text-xs border-stone-300 dark:border-stone-700"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-medium">
-                    Mot de passe
-                  </Label>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="h-8 text-xs border-stone-300 dark:border-stone-700"
-                />
-              </div>
+        <Suspense fallback={
+          <Card className="border border-stone-200 dark:border-stone-800 shadow-sm bg-card">
+            <CardContent className="p-5 flex items-center justify-center h-48 text-xs text-muted-foreground">
+              Chargement...
             </CardContent>
-
-            <CardFooter className="p-5 pt-1 flex flex-col gap-2.5">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-8 text-xs font-medium bg-stone-900 text-stone-50 hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200 transition-colors"
-              >
-                {isLoading ? "Connexion en cours..." : "Se connecter"}
-              </Button>
-
-              <div className="w-full pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Compte de démonstration</span>
-                <button
-                  type="button"
-                  onClick={handleFillDemo}
-                  className="text-primary hover:underline font-medium cursor-pointer"
-                >
-                  Remplir automatiquement
-                </button>
-              </div>
-            </CardFooter>
-          </form>
-        </Card>
+          </Card>
+        }>
+          <LoginForm />
+        </Suspense>
 
         <p className="text-center text-[11px] text-muted-foreground">
           Accès sécurisé réservé aux instructeurs habilités.
