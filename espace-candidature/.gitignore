@@ -22,7 +22,10 @@ dist-ssr
 # Unneeded / Local scratch files & External projects
 subverifpro/
 scripts/
-subVerif-*.json
+*subVerif*.json
+*subref*.json
+*SubVerif*.json
+*.workflow.json
 *.tmp
 *.bak
 
@@ -37,3 +40,4 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+.env*

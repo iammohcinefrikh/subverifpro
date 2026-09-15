@@ -1,5 +1,7 @@
 # SubVerif — Espace Candidature & Pipeline OCR
 
+> 📖 **Documentation Technique & Architecture Complète** : Retrouvez le guide complet d'architecture, schémas Mermaid, flux OCR, modèles Supabase et spécifications d'orchestration dans [DOCUMENTATION.md](./DOCUMENTATION.md).
+
 **SubVerif (Espace Candidature)** est la plateforme dématérialisée permettant aux porteurs de projets (entreprises, associations, indépendants, structures publiques) de déposer leur dossier de subvention, de suivre leur avancement et d'effectuer la régularisation de leurs pièces justificatives grâce à un **moteur OCR 100% côté client**.
 
 Ce projet constitue l'application **Espace Candidat** au sein de l'écosystème **SubVerif Pro**, opérant en synergie avec le **Dashboard d'Instruction** (`/dashboard`).
