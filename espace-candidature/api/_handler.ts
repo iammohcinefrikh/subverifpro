@@ -47,7 +47,7 @@ async function uploadToSupabaseStorage(
         'Content-Type': contentType || 'application/pdf',
         'x-upsert': 'true'
       },
-      body: buffer
+      body: new Uint8Array(buffer)
     });
     return res.ok;
   } catch (err) {
