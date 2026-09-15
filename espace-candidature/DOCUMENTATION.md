@@ -36,10 +36,10 @@ L'application repose sur une architecture moderne alliant un frontend Single Pag
 ```mermaid
 graph TB
     subgraph "Client - Navigateur du Candidat"
-        UI["React 19 + Tailwind CSS SPA"]
-        WIZ["Wizard Multi-Étapes (Zod + React Hook Form)"]
-        OCR_ENGINE["Moteur OCR Hybride (PDF.js + Tesseract.js)"]
-        CLIENT_CACHE["Session Storage & JWT Local"]
+        UI["React 19 et Tailwind CSS SPA"]
+        WIZ["Wizard Multi-Étapes - Zod et Hook Form"]
+        OCR_ENGINE["Moteur OCR Hybride - PDF.js et Tesseract.js"]
+        CLIENT_CACHE["Session Storage et JWT Local"]
     end
 
     subgraph "Edge / Hébergement (Vercel)"
@@ -49,7 +49,7 @@ graph TB
     end
 
     subgraph "Backend de Persistance (Supabase)"
-        PG_POOL["PostgreSQL Transaction Pooler (Port 6543)"]
+        PG_POOL["PostgreSQL Transaction Pooler - Port 6543"]
         PG_DB[("Base de Données PostgreSQL Souveraine")]
         STORAGE["Supabase Object Storage (application-documents)"]
         TRIGGERS["Triggers PL/pgSQL (sync_application_status)"]
@@ -57,28 +57,28 @@ graph TB
 
     subgraph "Pipeline d'Orchestration & IA"
         WEBHOOK["Webhook Gateway (stg-orch-api.abafusion.ai)"]
-        STAGE_G1["G1 : Recevabilité & Complétude"]
-        STAGE_G2["G2 : Éligibilité Administrative & Financière"]
-        STAGE_G3["G3 : Analyse IA & Conformité Métier"]
-        STAGE_G4["G4 : Décision & Notification Commission"]
+        STAGE_G1["G1 : Recevabilité et Complétude"]
+        STAGE_G2["G2 : Éligibilité Administrative et Financière"]
+        STAGE_G3["G3 : Analyse IA et Conformité Métier"]
+        STAGE_G4["G4 : Décision et Notification Commission"]
     end
 
     UI --> WIZ
     WIZ --> OCR_ENGINE
     UI --> CLIENT_CACHE
-    UI -->|Appels API JSON| V_ROUTER
-    V_ROUTER -->|Routage Serverless| SERVERLESS
-    V_ROUTER -->|Routage Proxy| PROXY
-    PROXY -->|Requête POST Sécurisée| WEBHOOK
-    SERVERLESS -->|Pooler pg (SSL)| PG_POOL
+    UI -->|"Appels API JSON"| V_ROUTER
+    V_ROUTER -->|"Routage Serverless"| SERVERLESS
+    V_ROUTER -->|"Routage Proxy"| PROXY
+    PROXY -->|"Requête POST Sécurisée"| WEBHOOK
+    SERVERLESS -->|"Pooler pg via SSL"| PG_POOL
     PG_POOL --> PG_DB
     PG_DB --- TRIGGERS
-    SERVERLESS -->|Stockage Pièces Justificatives| STORAGE
+    SERVERLESS -->|"Stockage Pièces Justificatives"| STORAGE
     WEBHOOK --> STAGE_G1
     STAGE_G1 --> STAGE_G2
     STAGE_G2 --> STAGE_G3
     STAGE_G3 --> STAGE_G4
-    STAGE_G1 -.->|Mise à jour statut & complétude| PG_DB
+    STAGE_G1 -.->|"Mise à jour statut et complétude"| PG_DB
 ```
 
 ---
@@ -92,8 +92,8 @@ flowchart TD
     START(["Visiteur sur le Portail"]) --> LANDING["Landing Page Institutionnelle (/)"]
     LANDING --> AUTH_CHECK{"Candidat déjà inscrit ?"}
     
-    AUTH_CHECK -- Oui --> LOGIN["Page de Connexion (/login)<br/>Vérification Email + Hash scrypt"]
-    AUTH_CHECK -- Non --> REG["Création de Compte (/login?tab=signup)<br/>Génération auto du profil demandeur"]
+    AUTH_CHECK -->|"Oui"| LOGIN["Page de Connexion (/login)<br/>Vérification Email + Hash scrypt"]
+    AUTH_CHECK -->|"Non"| REG["Création de Compte (/login?tab=signup)<br/>Génération auto du profil demandeur"]
     
     LOGIN --> DASHBOARD_VIEW["Dashboard Candidat (/dashboard)"]
     REG --> WIZARD["Wizard de Candidature (/candidature)"]
@@ -111,8 +111,8 @@ flowchart TD
     WIZARD --> STEP1
     STEP5 --> SUBMIT_ACTION{"Contrôle de validation passé ?"}
     
-    SUBMIT_ACTION -- Erreurs détectées --> STEP5
-    SUBMIT_ACTION -- Validé --> POST_SUBMIT["1. Envoi POST Webhook Orchestrateur<br/>2. Persistance PostgreSQL (Status: SUBMITTED)<br/>3. Envoi documents vers Supabase Storage"]
+    SUBMIT_ACTION -->|"Erreurs détectées"| STEP5
+    SUBMIT_ACTION -->|"Validé"| POST_SUBMIT["1. Envoi POST Webhook Orchestrateur<br/>2. Persistance PostgreSQL (Status: SUBMITTED)<br/>3. Envoi documents vers Supabase Storage"]
     
     POST_SUBMIT --> CONFIRM["Modal Reçu Officiel & Horodatage UUID v4"]
     CONFIRM --> DASHBOARD_VIEW
@@ -121,9 +121,9 @@ flowchart TD
         DASHBOARD_VIEW --> STATUS_POLL["Suivi Timeline : En attente ➔ Reçu ➔ En cours ➔ Conforme"]
         STATUS_POLL --> COMPLIANCE_CARD["Carte de Complétude (Taux 0 à 100%)"]
         COMPLIANCE_CARD --> MISSING_CHECK{"Pièces manquantes ou rejetées ?"}
-        MISSING_CHECK -- Oui --> UPLOAD_MODAL["Téléversement de régularisation immédiate<br/>OCR instantané & envoi complémentaire"]
+        MISSING_CHECK -->|"Oui"| UPLOAD_MODAL["Téléversement de régularisation immédiate<br/>OCR instantané & envoi complémentaire"]
         UPLOAD_MODAL --> STATUS_POLL
-        MISSING_CHECK -- Non --> FINAL_DECISION["Décision Finale de la Commission<br/>(VALIDATED / REJECTED)"]
+        MISSING_CHECK -->|"Non"| FINAL_DECISION["Décision Finale de la Commission<br/>(VALIDATED / REJECTED)"]
     end
 ```
 
@@ -138,19 +138,19 @@ flowchart LR
     INPUT_FILE["Fichier Téléversé<br/>(PDF, PNG, JPG, JPEG)"] --> MIME_CHECK{"Type de fichier ?"}
     
     subgraph "Moteur d'Extraction Hybride"
-        MIME_CHECK -- "PDF Vectoriel" --> PDF_TEXT["pdfjs-dist : getTextContent()"]
+        MIME_CHECK -->|"PDF Vectoriel"| PDF_TEXT["pdfjs-dist : getTextContent()"]
         PDF_TEXT --> HAS_TEXT{"Contient du texte exploitable ?"}
-        HAS_TEXT -- Oui (> 40 cars) --> EXTRACTED_TEXT["Texte Brut Extrait"]
-        HAS_TEXT -- Non (Scanné) --> PDF_RENDER["Pixellisation Canvas (Échelle 1.5x)"]
+        HAS_TEXT -->|"Oui (> 40 cars)"| EXTRACTED_TEXT["Texte Brut Extrait"]
+        HAS_TEXT -->|"Non (Scanné)"| PDF_RENDER["Pixellisation Canvas (Échelle 1.5x)"]
         
-        MIME_CHECK -- "Image (JPG/PNG)" --> IMG_LOAD["Chargement Image HTML5"]
-        PDF_RENDER --> TESSERACT["Tesseract.js OCR Worker<br/>(Modèle Français + Chiffres)"]
+        MIME_CHECK -->|"Image (JPG/PNG)"| IMG_LOAD["Chargement Image HTML5"]
+        PDF_RENDER --> TESSERACT["Tesseract.js OCR Worker<br/>(Modèle Français et Chiffres)"]
         IMG_LOAD --> TESSERACT
         TESSERACT --> EXTRACTED_TEXT
     end
     
-    subgraph "Traitement Sémantique & Regex"
-        EXTRACTED_TEXT --> CLASSIFIER["Classifieur Sémantique Lexical<br/>(CIN, RC, Statuts, RIB, Devis, etc.)"]
+    subgraph "Traitement Sémantique et Regex"
+        EXTRACTED_TEXT --> CLASSIFIER["Classifieur Sémantique Lexical<br/>(CIN, RC, Statuts, RIB, Devis)"]
         EXTRACTED_TEXT --> REGEX_ENGINE["Moteur Regex Maroc"]
         
         REGEX_ENGINE --> REG_ICE["ICE / RC (15 chiffres)"]
@@ -159,13 +159,13 @@ flowchart LR
         REGEX_ENGINE --> REG_DATE["Dates (JJ/MM/AAAA)"]
     end
     
-    CLASSIFIER --> DOC_RESULT["Document Traité & Catégorisé"]
+    CLASSIFIER --> DOC_RESULT["Document Traité et Catégorisé"]
     REG_ICE --> DOC_RESULT
     REG_IBAN --> DOC_RESULT
     REG_MONTANT --> DOC_RESULT
     REG_DATE --> DOC_RESULT
     
-    DOC_RESULT --> EDIT_MODAL["Aperçu & Correction Manuelle par le Candidat"]
+    DOC_RESULT --> EDIT_MODAL["Aperçu et Correction Manuelle par le Candidat"]
 ```
 
 ### Règles d'Extraction Régulières Spécifiques
@@ -182,16 +182,16 @@ Le schéma relationnel garantit la cohérence entre les utilisateurs candidats, 
 
 ```mermaid
 erDiagram
-    CANDIDATE_USERS ||--o{ APPLICATIONS : "dépose / possède"
-    PROGRAMS ||--o{ APPLICATIONS : "concerne"
-    PROGRAMS ||--o{ PROGRAM_ELIGIBILITY_CRITERIA : "définit les règles de"
-    APPLICATIONS ||--|| COMPLIANCE_CHECKS : "fait l'objet de"
-    APPLICATIONS ||--o{ APPLICATION_DOCUMENTS : "comporte"
+    CANDIDATE_USERS ||--o{ APPLICATIONS : "soumet"
+    PROGRAMS ||--o{ APPLICATIONS : "gouverne"
+    PROGRAMS ||--o{ PROGRAM_ELIGIBILITY_CRITERIA : "definit"
+    APPLICATIONS ||--|| COMPLIANCE_CHECKS : "evalue"
+    APPLICATIONS ||--o{ APPLICATION_DOCUMENTS : "contient"
 
     CANDIDATE_USERS {
         uuid id PK
         varchar email UK
-        text password_hash "scrypt:salt:hash"
+        text password_hash "Hash scrypt"
         varchar nom
         varchar prenom
         varchar role "CANDIDATE"
@@ -204,7 +204,7 @@ erDiagram
     }
 
     PROGRAMS {
-        varchar id PK "prog-forsa, prog-tatwir-rd, etc."
+        varchar id PK "Identifiant programme"
         varchar name
         text description
         numeric budget_total
@@ -228,7 +228,7 @@ erDiagram
 
     APPLICATIONS {
         uuid id PK
-        uuid application_id UK "Identifiant métier synchronisé"
+        uuid application_id UK "Identifiant metier"
         varchar program_id FK
         uuid candidate_id FK
         varchar cin
@@ -239,11 +239,11 @@ erDiagram
         text project_description
         numeric total_amount
         numeric requested_amount
-        jsonb depenses "Postes budgétaires"
-        jsonb financements "Sources de financement"
-        jsonb documents "Métadonnées des pièces"
-        enum status "DRAFT, SUBMITTED, INCOMPLETE, CONFORME, ACCEPTED, REJECTED"
-        numeric compliance_rate "Pourcentage 0 à 100"
+        jsonb depenses "Postes budgetaires"
+        jsonb financements "Plan de financement"
+        jsonb documents "Metadonnees des pieces"
+        enum status "Statut dossier"
+        numeric compliance_rate "Taux de completude"
         timestamptz submitted_at
         timestamptz created_at
         timestamptz updated_at
@@ -254,12 +254,12 @@ erDiagram
         uuid application_id FK
         uuid candidate_id FK
         varchar program_id FK
-        numeric completeness_rate "Pourcentage calculé"
-        varchar status "INCOMPLETE, CONFORME, VALIDATED"
-        jsonb documents "Pièces analysées"
-        jsonb missing_documents "Pièces requises absentes"
-        jsonb expired_documents "Pièces dont la date est dépassée"
-        jsonb present_documents "Pièces présentes valides"
+        numeric completeness_rate "Taux calcule"
+        varchar status "Statut conformite"
+        jsonb documents "Pieces analysees"
+        jsonb missing_documents "Pieces manquantes"
+        jsonb expired_documents "Pieces expirees"
+        jsonb present_documents "Pieces valides"
         integer mandatory_documents_count
         integer present_count
         integer missing_count
@@ -273,9 +273,9 @@ erDiagram
         uuid application_id FK
         varchar type_document
         integer taille
-        varchar storage_path "applications/{id}/file.pdf"
-        text url "Supabase Storage Public URL"
-        varchar statut_ocr "en_attente, succes, echec"
+        varchar storage_path "Chemin stockage"
+        text url "URL Publique Supabase"
+        varchar statut_ocr "Statut OCR"
         timestamptz created_at
     }
 ```
@@ -298,33 +298,33 @@ sequenceDiagram
     autonumber
     actor Candidat as Navigateur Candidat
     participant VRouter as Vercel Edge Router
-    participant Serverless as Serverless Function (/api/*)
+    participant Serverless as Serverless API
     participant Supabase as PostgreSQL Supabase
     participant Storage as Supabase Storage
-    participant Orchestrator as Orchestrateur (stg-orch-api)
+    participant Orchestrator as Orchestrateur stg-orch-api
 
     %% Connexion
-    Candidat->>VRouter: POST /api/candidate-users/login {email, password}
-    VRouter->>Serverless: Déclenche api/candidate-users/login.ts
-    Serverless->>Supabase: SELECT * FROM candidate_users WHERE email = $1
-    Supabase-->>Serverless: Enregistrement utilisateur avec password_hash
-    Serverless->>Serverless: crypto.scryptSync(password, salt) === originalHash
-    Serverless->>Supabase: SELECT * FROM applications WHERE candidate_id = $1
+    Candidat->>VRouter: POST /api/candidate-users/login
+    VRouter->>Serverless: Declenche api/candidate-users/login.ts
+    Serverless->>Supabase: SELECT candidate_users WHERE email
+    Supabase-->>Serverless: Enregistrement avec password_hash
+    Serverless->>Serverless: crypto.scryptSync verification
+    Serverless->>Supabase: SELECT applications WHERE candidate_id
     Supabase-->>Serverless: Dossier actif
-    Serverless-->>Candidat: 200 OK {success: true, candidateUser, application}
+    Serverless-->>Candidat: 200 OK (candidateUser, application)
 
     %% Soumission
-    Candidat->>VRouter: POST /api/webhook-proxy/webhook/.../condidat (Dossier)
-    VRouter->>Orchestrator: Proxy transparent POST (Élimine CORS)
-    Orchestrator-->>Candidat: 200 OK Reçu d'enregistrement
+    Candidat->>VRouter: POST /api/webhook-proxy/webhook/... (Dossier)
+    VRouter->>Orchestrator: Proxy transparent POST (Bypass CORS)
+    Orchestrator-->>Candidat: 200 OK Recu d'enregistrement
 
-    %% Persistance & Pièces
+    %% Persistance et Pieces
     Candidat->>VRouter: POST /api/applications (Statut SUBMITTED)
     VRouter->>Serverless: api/applications.ts
-    Serverless->>Supabase: UPDATE/INSERT applications
-    Serverless->>Storage: uploadToSupabaseStorage() pour chaque pièce
+    Serverless->>Supabase: UPDATE ou INSERT applications
+    Serverless->>Storage: uploadToSupabaseStorage()
     Storage-->>Serverless: Statut 200 OK
-    Serverless-->>Candidat: 200 OK {success: true, application}
+    Serverless-->>Candidat: 200 OK (application)
 ```
 
 ### Inventaire des Points d'Accès
@@ -353,20 +353,20 @@ Le traitement d'un dossier de subvention au sein de SubVerif traverse 4 portes l
 stateDiagram-v2
     [*] --> G1_Recevabilite: Soumission du Dossier
     
-    state "G1 : Recevabilité & Complétude" as G1_Recevabilite {
+    state "G1 : Recevabilité et Complétude" as G1_Recevabilite {
         VerificationPieces: Présence des pièces obligatoires (CIN, RC, Devis, Statuts)
         ControleFormat: Lisibilité et validité des formats de fichier
-        CalculTaux: Calcul du taux de complétude (completeness_rate)
+        CalculTaux: Calcul du taux de complétude
     }
     
-    G1_Recevabilite --> G1_Rejet: Taux < 100% ou pièces critiques absentes
+    G1_Recevabilite --> G1_Rejet: Taux inferieur a 100% ou pieces manquantes
     G1_Rejet --> DemandeComplements: Notification de pièces manquantes
     DemandeComplements --> G1_Recevabilite: Régularisation par le candidat
     
-    G1_Recevabilite --> G2_Eligibilite: Taux = 100% (Statut: CONFORME)
+    G1_Recevabilite --> G2_Eligibilite: Taux 100% Conforme
     
-    state "G2 : Éligibilité Administrative & Financière" as G2_Eligibilite {
-        ControleProgramme: Conformité aux critères cibles (Chiffre d'Affaires, Ancienneté)
+    state "G2 : Éligibilité Administrative et Financière" as G2_Eligibilite {
+        ControleProgramme: Conformité aux critères cibles (Chiffre Affaires, Anciennete)
         PlafondBudget: Respect du ratio subvention demandée / coût total
         ZoneGeographique: Vérification de la région prioritaire
     }
@@ -374,15 +374,15 @@ stateDiagram-v2
     G2_Eligibilite --> G2_Rejet: Critère éliminatoire non satisfait
     G2_Eligibilite --> G3_EvaluationIA: Critères G2 validés
     
-    state "G3 : Analyse IA & Conformité Métier" as G3_EvaluationIA {
+    state "G3 : Analyse IA et Conformité Métier" as G3_EvaluationIA {
         AnalyseCoherence: Cohérence de l'objet du projet vs devis
-        ControleFiscal: Rapprochement Liasses fiscales & ICE
-        DetectionAnomalies: Détection de duplicatas ou incohérences bancaires (RIB)
+        ControleFiscal: Rapprochement Liasses fiscales et ICE
+        DetectionAnomalies: Détection de duplicatas ou incohérences bancaires
     }
     
     G3_EvaluationIA --> G4_Decision: Rapport d'évaluation synthétisé
     
-    state "G4 : Décision & Notification Commission" as G4_Decision {
+    state "G4 : Décision et Notification Commission" as G4_Decision {
         RevueInstructeur: Validation par le comité technique
         DecisionFinale: Accord de subvention ou Rejet motivé
         Notification: Envoi avis officiel et notification portail
