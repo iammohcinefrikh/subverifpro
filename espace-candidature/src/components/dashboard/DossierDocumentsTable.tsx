@@ -3,9 +3,10 @@ import type { MockCandidateUser } from '../../types/auth';
 import type { WebhookPiecePayload } from '../../types/webhook';
 import type { DocumentType } from '../../types/ocr';
 import { getDocumentTypeDefinition } from '../../config/documentTypes';
+import { findProgram } from '../../config/programs';
 import { processFileOcr } from '../../services/ocrService';
 import { addComplementPiecesToDossier } from '../../services/mockAuthService';
-import { saveComplianceCheckToDb } from '../../services/complianceCheckService';
+import { saveComplianceCheckToDb, normalizeDocumentType, getMissingDocuments } from '../../services/complianceCheckService';
 import { generateSyntheticDocument } from '../../services/syntheticDocumentGenerator';
 import {
   FileText,
@@ -37,72 +38,96 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   const existingPieces = user.dossier.pieces;
-  const existingTypes = new Set(existingPieces.map((p) => p.type_declare));
 
-  // Combiner les pièces fournies et les pièces manquantes dans une vue unifiée
-  const missingTypes = user.dossier.pieces_requises.filter((req) => !existingTypes.has(req));
+  // Résolution du programme officiel et de ses exigences
+  const programId = user.projet.programme_id || 'prog-tatwir-rd';
+  const program = findProgram(programId);
+  const programName = program?.nom || (programId === 'prog-tatwir-rd' ? 'TATWIR R&D et Innovation' : programId);
+
+  const rawPiecesRequises = (program && program.requirements.length > 0)
+    ? program.requirements.map((r) => r.document_type)
+    : (user.dossier.pieces_requises?.length
+        ? user.dossier.pieces_requises
+        : ['piece_identite', 'rc', 'statuts', 'rib', 'projet_rd', 'plan_financement', 'devis']);
+
+  // Réconciliation robuste avec getMissingDocuments
+  const { missingTypes } = getMissingDocuments(rawPiecesRequises, existingPieces);
 
   /**
    * Traitement d'un fichier téléversé par le candidat (ajout ou remplacement)
    */
   const handleFileProcess = async (file: File, targetType: DocumentType) => {
     try {
-      setProcessingType(targetType);
+      const normalizedTarget = normalizeDocumentType(targetType);
+      setProcessingType(normalizedTarget);
       setSuccessNotice(null);
 
       const ocrResult = await processFileOcr(file);
+      const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `applications/${user.dossier.dossier_id}/${normalizedTarget}_${cleanName}`;
+      const publicUrl = `https://mtbtvivmdfrrujehkpvx.supabase.co/storage/v1/object/public/application-documents/${storagePath}`;
 
       const newPiece: WebhookPiecePayload = {
         nom_fichier: file.name,
-        type_declare: targetType,
-        type_suggere_ocr: ocrResult.type_suggere,
+        type_declare: normalizedTarget,
+        type_suggere_ocr: ocrResult.type_suggere ? normalizeDocumentType(ocrResult.type_suggere) : normalizedTarget,
         texte_ocr: ocrResult.texte,
         champs_detectes: ocrResult.champs_detectes,
         fichier_base64: '', // Ne jamais stocker de gros base64 en localStorage
-        statut_ocr: ocrResult.succes ? 'succes' : 'echec'
+        statut_ocr: ocrResult.succes ? 'succes' : 'echec',
+        taille: file.size,
+        storage_path: storagePath,
+        url: publicUrl
       };
 
       // 1. Sauvegarder dans le dossier local
       const updatedUser = addComplementPiecesToDossier(
         user.id,
         [newPiece],
-        `Mise à jour du document ${targetType} effectuée le ${new Date().toLocaleDateString('fr-FR')}`
+        `Mise à jour du document ${normalizedTarget} effectuée le ${new Date().toLocaleDateString('fr-FR')}`
       );
 
       // 2. Calculer le nouveau taux d'exhaustivité
-      const allPieces = updatedUser ? updatedUser.dossier.pieces : [...existingPieces.filter((p) => p.type_declare !== targetType), newPiece];
-      const piecesRequises = user.dossier.pieces_requises || ['piece_identite', 'rib', 'devis', 'statuts'];
-      const currentTypes = new Set(allPieces.map((p) => p.type_declare));
-      const remainingMissing = piecesRequises.filter((req) => !currentTypes.has(req));
-      const isComplete = remainingMissing.length === 0;
+      const allPieces = updatedUser ? updatedUser.dossier.pieces : [...existingPieces.filter((p) => normalizeDocumentType(p.type_declare) !== normalizedTarget), newPiece];
+      const checkResult = getMissingDocuments(rawPiecesRequises, allPieces);
 
-      const rate = piecesRequises.length > 0
-        ? Math.min(100, Math.round(((piecesRequises.length - remainingMissing.length) / piecesRequises.length) * 100))
-        : 100;
-
-      // 3. Mise à jour directe de la table public.compliance_checks dans PostgreSQL
+      // 3. Mise à jour directe de la table public.compliance_checks et public.application_documents dans PostgreSQL
       await saveComplianceCheckToDb({
+        application_id: user.dossier.dossier_id,
         candidate_id: user.id,
-        application_id: (user.dossier as any).db_application_id || user.dossier.dossier_id,
-        program_id: user.projet.programme_id || 'prog-forsa',
-        completeness_rate: rate,
-        status: isComplete ? 'COMPLETE' : 'INCOMPLETE',
-        mandatory_documents_count: piecesRequises.length,
-        present_count: allPieces.length,
-        missing_count: remainingMissing.length,
+        program_id: programId,
+        completeness_rate: checkResult.completenessRate,
+        status: checkResult.isComplete ? 'CONFORME' : 'INCOMPLETE',
+        mandatory_documents_count: rawPiecesRequises.length,
+        present_count: checkResult.presentTypes.length,
+        missing_count: checkResult.missingTypes.length,
         expired_count: 0,
-        present_documents: allPieces.map((p) => p.type_declare),
-        missing_documents: remainingMissing.map((t) => ({
+        present_documents: allPieces.map((p) => ({
+          type: normalizeDocumentType(p.type_declare || (p as any).document_type),
+          nom: p.nom_fichier,
+          statut: 'CONFORME'
+        })),
+        missing_documents: checkResult.missingTypes.map((t) => ({
           type: t,
-          document_type: t,
+          statut: 'MANQUANT',
           status: 'MISSING'
         })),
-        documents: allPieces.map((p) => ({
-          type: p.type_declare,
-          document_type: p.type_declare,
-          nom_fichier: p.nom_fichier,
-          status: 'PRESENT'
-        }))
+        documents: allPieces.map((p) => {
+          const typeDoc = normalizeDocumentType(p.type_declare || (p as any).document_type);
+          const cName = (p.nom_fichier || (p as any).nom || `${typeDoc}.pdf`).replace(/[^a-zA-Z0-9._-]/g, '_');
+          const sPath = (p as any).storage_path || `applications/${user.dossier.dossier_id}/${typeDoc}_${cName}`;
+          return {
+            type: typeDoc,
+            type_declare: typeDoc,
+            nom: p.nom_fichier,
+            nom_fichier: p.nom_fichier,
+            statut: 'CONFORME',
+            statut_ocr: (p as any).statut_ocr || 'succes',
+            taille: (p as any).taille || 256000,
+            storage_path: sPath,
+            url: (p as any).url || `https://mtbtvivmdfrrujehkpvx.supabase.co/storage/v1/object/public/application-documents/${sPath}`
+          };
+        })
       });
 
       setSuccessNotice(`Document "${file.name}" vérifié et synchronisé avec succès.`);
@@ -173,7 +198,7 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
             Répertoire des pièces justificatives du dossier
           </h2>
           <p className="text-xs text-sand-500 mt-0.5">
-            Gérez, remplacez ou complétez vos documents ({existingPieces.length} déposée(s), {missingTypes.length} manquante(s)).
+            Exigences documentaires au titre du programme <strong className="text-indigo-950 font-semibold">{programName}</strong> ({existingPieces.length} déposée(s), {missingTypes.length} manquante(s)).
           </p>
         </div>
 
@@ -210,8 +235,9 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
           <tbody className="divide-y divide-sand-200">
             {/* 1. Pièces déjà déposées */}
             {existingPieces.map((piece, idx) => {
-              const def = getDocumentTypeDefinition(piece.type_declare);
-              const isProcessing = processingType === piece.type_declare;
+              const normalizedType = normalizeDocumentType(piece.type_declare || (piece as any).document_type);
+              const def = getDocumentTypeDefinition(normalizedType);
+              const isProcessing = processingType === normalizedType;
 
               return (
                 <tr key={idx} className="hover:bg-sand-50/80 transition-colors">
@@ -228,7 +254,7 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
 
                   <td className="py-3.5 px-4">
                     <span className="font-medium text-slate-800">
-                      {def?.label || piece.type_declare}
+                      {def?.label || normalizedType}
                     </span>
                   </td>
 
@@ -264,6 +290,19 @@ export const DossierDocumentsTable: React.FC<DossierDocumentsTableProps> = ({
 
                   <td className="py-3.5 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {((piece as any).url || (piece as any).storage_path) && (
+                        <a
+                          href={(piece as any).url || `https://mtbtvivmdfrrujehkpvx.supabase.co/storage/v1/object/public/application-documents/${(piece as any).storage_path}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold transition-colors"
+                          title="Accéder au document dans Supabase Storage"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Fichier</span>
+                        </a>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setSelectedPiece(piece)}

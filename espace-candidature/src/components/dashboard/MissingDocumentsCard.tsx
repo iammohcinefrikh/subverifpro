@@ -8,9 +8,10 @@ import { Button } from '../ui/Button';
 import { processFileOcr, fileToBase64 } from '../../services/ocrService';
 import { sendComplementToWebhook } from '../../services/webhookService';
 import { addComplementPiecesToDossier } from '../../services/mockAuthService';
-import { saveComplianceCheckToDb } from '../../services/complianceCheckService';
+import { saveComplianceCheckToDb, normalizeDocumentType, getMissingDocuments } from '../../services/complianceCheckService';
 import { generateSyntheticDocument } from '../../services/syntheticDocumentGenerator';
 import { getDocumentTypeDefinition } from '../../config/documentTypes';
+import { findProgram } from '../../config/programs';
 import {
   AlertTriangle,
   FileWarning,
@@ -37,14 +38,22 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
 
-  // Identifier précisément les pièces manquantes
-  const existingTypes = new Set(user.dossier.pieces.map((p) => p.type_declare));
-  const missingTypes = user.dossier.pieces_requises.filter(
-    (reqType) => !existingTypes.has(reqType)
-  );
+  // Résolution du programme
+  const programId = user.projet.programme_id || 'prog-tatwir-rd';
+  const program = findProgram(programId);
+  const programName = program?.nom || (programId === 'prog-tatwir-rd' ? 'TATWIR R&D et Innovation' : programId);
+
+  const rawPiecesRequises = (program && program.requirements.length > 0)
+    ? program.requirements.map((r) => r.document_type)
+    : (user.dossier.pieces_requises?.length
+        ? user.dossier.pieces_requises
+        : ['piece_identite', 'rc', 'statuts', 'rib', 'projet_rd', 'plan_financement', 'devis']);
+
+  // Identifier précisément les pièces manquantes avec la fonction robuste getMissingDocuments
+  const { missingTypes } = getMissingDocuments(rawPiecesRequises, user.dossier.pieces);
 
   // Fichiers déjà ajoutés dans la session courante
-  const addedTypes = new Set(newDocuments.map((d) => d.type_declare));
+  const addedTypes = new Set(newDocuments.map((d) => normalizeDocumentType(d.type_declare)));
   const remainingToUpload = missingTypes.filter((t) => !addedTypes.has(t));
 
   const isAnyOcrPending = newDocuments.some((d) => d.statut_ocr === 'en_cours');
@@ -80,10 +89,17 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
           );
         });
 
-        // Heuristique d'association si le type correspond à une pièce manquante
-        let declaredType: DocumentType = ocrResult.type_suggere || 'autre';
-        if (remainingToUpload.length > 0 && declaredType === 'autre') {
-          declaredType = remainingToUpload[0];
+        // Heuristique d'association et normalisation d'alias (ex: cnie -> piece_identite)
+        const suggested = ocrResult.type_suggere ? normalizeDocumentType(ocrResult.type_suggere) : null;
+        const fileNameLower = doc.nom_fichier.toLowerCase();
+
+        let declaredType: DocumentType = suggested || 'autre';
+        if (declaredType === 'autre') {
+          if (fileNameLower.includes('cnie') || fileNameLower.includes('cin') || fileNameLower.includes('identite')) {
+            declaredType = 'piece_identite';
+          } else if (remainingToUpload.length > 0) {
+            declaredType = remainingToUpload[0];
+          }
         }
 
         setNewDocuments((prev) =>
@@ -93,7 +109,7 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
                   ...d,
                   statut_ocr: ocrResult.succes ? 'succes' : 'echec',
                   type_declare: declaredType,
-                  type_suggere_ocr: ocrResult.type_suggere,
+                  type_suggere_ocr: suggested || undefined,
                   texte_ocr: ocrResult.texte,
                   champs_detectes: ocrResult.champs_detectes,
                   fichier_base64: base64,
@@ -200,15 +216,22 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const piecesPayload: WebhookPiecePayload[] = newDocuments.map((d) => ({
-      nom_fichier: d.nom_fichier,
-      type_declare: d.type_declare,
-      type_suggere_ocr: d.type_suggere_ocr,
-      texte_ocr: d.texte_ocr,
-      champs_detectes: d.champs_detectes,
-      fichier_base64: d.fichier_base64,
-      statut_ocr: d.statut_ocr
-    }));
+    const piecesPayload: WebhookPiecePayload[] = newDocuments.map((d) => {
+      const cleanName = d.nom_fichier.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `applications/${user.dossier.dossier_id}/${d.type_declare}_${cleanName}`;
+      return {
+        nom_fichier: d.nom_fichier,
+        type_declare: d.type_declare,
+        type_suggere_ocr: d.type_suggere_ocr,
+        texte_ocr: d.texte_ocr,
+        champs_detectes: d.champs_detectes,
+        fichier_base64: d.fichier_base64,
+        statut_ocr: d.statut_ocr,
+        taille: d.taille,
+        storage_path: storagePath,
+        url: `https://mtbtvivmdfrrujehkpvx.supabase.co/storage/v1/object/public/application-documents/${storagePath}`
+      };
+    });
 
     const complementPayload: WebhookComplementPayload = {
       type: 'complement_pieces',
@@ -236,38 +259,46 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
 
       // 3. Calcul précis des pièces et de l'exhaustivité
       const allPieces = updatedUser ? updatedUser.dossier.pieces : [...user.dossier.pieces, ...piecesPayload];
-      const piecesRequises = user.dossier.pieces_requises || ['piece_identite', 'rib', 'devis', 'statuts'];
-      const currentTypes = new Set(allPieces.map((p) => p.type_declare));
-      const remainingMissing = piecesRequises.filter((req) => !currentTypes.has(req));
-      const isComplete = remainingMissing.length === 0;
+      const checkResult = getMissingDocuments(rawPiecesRequises, allPieces);
 
-      const rate = piecesRequises.length > 0
-        ? Math.min(100, Math.round(((piecesRequises.length - remainingMissing.length) / piecesRequises.length) * 100))
-        : 100;
-
-      // 4. Synchronisation avec PostgreSQL public.compliance_checks
+      // 4. Synchronisation avec PostgreSQL public.compliance_checks et public.application_documents
       await saveComplianceCheckToDb({
         candidate_id: user.id,
-        application_id: (user.dossier as any).db_application_id || user.dossier.dossier_id,
-        program_id: user.projet.programme_id || 'prog-forsa',
-        completeness_rate: rate,
-        status: isComplete ? 'COMPLETE' : 'INCOMPLETE',
-        mandatory_documents_count: piecesRequises.length,
-        present_count: allPieces.length,
-        missing_count: remainingMissing.length,
+        application_id: user.dossier.dossier_id,
+        program_id: programId,
+        completeness_rate: checkResult.completenessRate,
+        status: checkResult.isComplete ? 'CONFORME' : 'INCOMPLETE',
+        mandatory_documents_count: rawPiecesRequises.length,
+        present_count: checkResult.presentTypes.length,
+        missing_count: checkResult.missingTypes.length,
         expired_count: 0,
-        present_documents: allPieces.map((p) => p.type_declare),
-        missing_documents: remainingMissing.map((t) => ({
+        present_documents: allPieces.map((p) => ({
+          type: normalizeDocumentType(p.type_declare || (p as any).document_type),
+          nom: p.nom_fichier,
+          statut: 'CONFORME'
+        })),
+        missing_documents: checkResult.missingTypes.map((t) => ({
           type: t,
           document_type: t,
+          statut: 'MANQUANT',
           status: 'MISSING'
         })),
-        documents: allPieces.map((p) => ({
-          type: p.type_declare,
-          document_type: p.type_declare,
-          nom_fichier: p.nom_fichier,
-          status: 'PRESENT'
-        }))
+        documents: allPieces.map((p) => {
+          const typeDoc = normalizeDocumentType(p.type_declare || (p as any).document_type);
+          const cleanName = (p.nom_fichier || (p as any).nom || `${typeDoc}.pdf`).replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storagePath = (p as any).storage_path || `applications/${user.dossier.dossier_id}/${typeDoc}_${cleanName}`;
+          return {
+            type: typeDoc,
+            type_declare: typeDoc,
+            nom: p.nom_fichier || (p as any).nom,
+            nom_fichier: p.nom_fichier || (p as any).nom,
+            statut: 'CONFORME',
+            statut_ocr: (p as any).statut_ocr || 'succes',
+            taille: (p as any).taille || 256000,
+            storage_path: storagePath,
+            url: (p as any).url || `https://mtbtvivmdfrrujehkpvx.supabase.co/storage/v1/object/public/application-documents/${storagePath}`
+          };
+        })
       });
 
       setSubmitSuccess(true);
@@ -318,7 +349,7 @@ export const MissingDocumentsCard: React.FC<MissingDocumentsCardProps> = ({
               Pièces justificatives manquantes ou non conformes
             </h2>
             <p className="text-xs text-slate-600 mt-1">
-              L'instructeur a examiné votre dossier et requiert les pièces suivantes pour poursuivre la procédure :
+              L'instructeur a examiné votre dossier au titre du programme <strong className="text-amber-950 font-bold">{programName}</strong> et requiert les pièces suivantes pour poursuivre la procédure :
             </p>
           </div>
         </div>

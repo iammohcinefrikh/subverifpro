@@ -1,12 +1,12 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { DossierTimeline } from '../components/dashboard/DossierTimeline';
 import { MissingDocumentsCard } from '../components/dashboard/MissingDocumentsCard';
 import { DossierDocumentsTable } from '../components/dashboard/DossierDocumentsTable';
 import {
   fetchComplianceCheckFromDb,
-  buildInitialComplianceCheckFromUser,
+  reconcileComplianceCheckWithProgram,
   type ComplianceCheck,
 } from '../services/complianceCheckService';
 import { updateCandidateDossier } from '../services/mockAuthService';
@@ -15,16 +15,19 @@ import {
   Coins,
   Copy,
   Check,
-  LogOut,
   AlertTriangle,
   Clock,
   ShieldCheck,
   KeyRound,
   Building2,
   FileText,
+  FileEdit,
+  Award,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { decodeJwtClaims } from '../services/jwtService';
+import { findProgram } from '../config/programs';
 import {
   ZelligePattern,
   KhatemSeal,
@@ -33,7 +36,7 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, jwtToken, isAuthenticated, logout, refreshUser, availableDemoCandidates, loginAsDemo } = useAuth();
+  const { user, jwtToken, isAuthenticated, refreshUser, availableDemoCandidates, loginAsDemo } = useAuth();
   const { primaryColor } = useMoroccanTheme();
   const [copied, setCopied] = React.useState(false);
   const [showJwtModal, setShowJwtModal] = React.useState(false);
@@ -45,11 +48,9 @@ export const DashboardPage: React.FC = () => {
   const loadCompliance = React.useCallback(async (_isSilent = false) => {
     if (!user) return;
     try {
-      let check = await fetchComplianceCheckFromDb(user.id, user.dossier.dossier_id);
-      if (!check) {
-        // Fallback local uniquement sans écraser la base
-        check = buildInitialComplianceCheckFromUser(user) as ComplianceCheck;
-      }
+      const rawCheck = await fetchComplianceCheckFromDb(user.id, user.dossier.dossier_id);
+      // Réconciliation stricte avec les exigences réelles du programme souscrit
+      const check = reconcileComplianceCheckWithProgram(rawCheck, user);
       setComplianceCheck(check);
 
       // Si compliance_checks a un statut complété / validé, synchroniser automatiquement le statut du dossier
@@ -98,7 +99,7 @@ export const DashboardPage: React.FC = () => {
   React.useEffect(() => {
     if (!isAuthenticated || !user) {
       navigate('/login');
-    } else if (user.hasSubmittedDossier === false || (!user.hasSubmittedDossier && user.dossier.pieces.length === 0)) {
+    } else if (user.hasSubmittedDossier === false && user.dossier.pieces.length === 0 && !user.dossier.dossier_id) {
       navigate('/candidature', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
@@ -121,12 +122,13 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   const decodedClaims = jwtToken ? decodeJwtClaims(jwtToken) : null;
+
+  // Résolution du programme officiel
+  const programId = complianceCheck?.program_id || user.projet.programme_id || 'prog-istitmar-tpe';
+  const program = findProgram(programId);
+  const programName = program?.nom || (programId === 'prog-istitmar-tpe' ? 'Istitmar TPE' : programId);
+  const programCategory = program?.categorie || 'Maroc PME • Dispositif National';
 
   const formattedDate = new Date(user.dossier.date_soumission).toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -168,135 +170,208 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 text-left relative">
+    <div className="space-y-4 max-w-6xl mx-auto px-6 py-4 text-left relative">
       {/* Trame Zellige légère en arrière-plan */}
       <ZelligePattern id="zel-dash" color={primaryColor} opacity={0.03} />
 
-      {/* 1. Bandeau Principal du Dossier */}
-      <div className="relative bg-sand-50 rounded-3xl border border-sand-300 shadow-card p-6 sm:p-8 space-y-6 overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-sand-200">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-950 bg-sand-200 px-3 py-1 rounded-full border border-sand-300">
-                {user.structureType}
-              </span>
-              {getStatusBadge()}
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Building2 className="w-6 h-6 text-terracotta-600" style={{ color: primaryColor }} />
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-indigo-950 tracking-tight">
-                {user.structureNom}
-              </h1>
-            </div>
-            <p className="text-xs text-sand-500 flex flex-wrap items-center gap-2">
-              <span>Représentant légal : <strong className="text-indigo-950">{user.demandeur.prenom_representant} {user.demandeur.nom_representant}</strong></span>
-              <span>•</span>
-              <span>ICE / SIRET : <code className="font-mono text-indigo-950 font-bold">{user.demandeur.siret}</code></span>
-              <span>•</span>
-              <span>Ville : <span className="font-semibold text-indigo-950">{user.demandeur.ville}</span></span>
+      {/* 1. Carte Principale de l'Entité & Métadonnées */}
+      <div className="relative bg-white/95 backdrop-blur-sm rounded-2xl border border-sand-300 shadow-sm p-4 sm:p-5 space-y-3.5 overflow-hidden">
+        {/* Ligne d'état & Badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-950 bg-sand-200 px-2.5 py-0.5 rounded-full border border-sand-300">
+            {user.structureType}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-950 border border-emerald-300">
+            <Award className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span>{programName}</span>
+          </span>
+          {getStatusBadge()}
+        </div>
+
+        {/* Titre Principal de l'Entité */}
+        <div className="flex items-center gap-2.5">
+          <Building2 className="w-6 h-6 shrink-0" style={{ color: primaryColor }} />
+          <h1 className="font-display font-serif text-2xl sm:text-3xl font-bold text-indigo-950 tracking-tight leading-tight">
+            {user.structureNom}
+          </h1>
+        </div>
+
+        {/* Détails de l'Entité & Métadonnées (Grille Key-Value aérée) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-3 border-t border-sand-200">
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-sand-500 uppercase tracking-wider block">
+              Programme
+            </span>
+            <p className="text-sm font-semibold text-emerald-950 truncate" title={`${programName} (${programCategory})`}>
+              {programName}
+            </p>
+            <p className="text-xs text-sand-400 truncate">{programCategory}</p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-sand-500 uppercase tracking-wider block">
+              Objet du Projet
+            </span>
+            <p className="text-sm font-semibold text-indigo-950 line-clamp-2" title={user.projet.objet_projet}>
+              {user.projet.objet_projet}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-sand-500 uppercase tracking-wider block">
+              Représentant Légal
+            </span>
+            <p className="text-sm font-semibold text-indigo-950 truncate">
+              {user.demandeur.prenom_representant} {user.demandeur.nom_representant}
+            </p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-sand-500 uppercase tracking-wider block">
+              Identifiant Commun (ICE)
+            </span>
+            <p className="text-sm font-mono font-semibold text-indigo-950">
+              {user.demandeur.siret}
+            </p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-semibold text-sand-500 uppercase tracking-wider block">
+              Ville d'Implantation
+            </span>
+            <p className="text-sm font-semibold text-indigo-950">
+              {user.demandeur.ville}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Barre d'Actions Principales (Action Bar dédiée sous la carte) */}
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-sand-300 shadow-sm px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Actions du dossier */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            to="/candidature"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-xs hover:brightness-105 cursor-pointer"
+            style={{ backgroundColor: primaryColor }}
+            title="Mettre à jour l'ensemble de votre dossier de candidature"
+          >
+            <FileEdit className="w-4 h-4" />
+            <span>Mettre à jour le dossier</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setShowComplementCard((prev) => !prev)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 text-amber-950 border border-amber-400/80 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+            title="Modifier ou ajouter des pièces justificatives au dossier"
+          >
+            <FileText className="w-4 h-4 text-amber-700" />
+            <span>{showComplementCard ? 'Masquer pièces' : 'Compléter / Modifier pièces'}</span>
+          </button>
+
+          {jwtToken && (
             <button
               type="button"
-              onClick={() => setShowComplementCard((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-sand-100 text-indigo-950 border border-sand-300 text-xs font-bold transition-colors cursor-pointer shadow-xs"
-              title="Modifier ou ajouter des pièces justificatives au dossier"
+              onClick={() => setShowJwtModal(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+              title="Inspecter le jeton d'authentification JWT signé"
             >
-              <FileText className="w-3.5 h-3.5 text-terracotta-600" />
-              <span>{showComplementCard ? 'Masquer ajout' : 'Compléter / Modifier pièces'}</span>
+              <KeyRound className="w-4 h-4 text-emerald-600" />
+              <span>Session JWT</span>
             </button>
+          )}
+        </div>
 
-            {jwtToken && (
-              <button
-                type="button"
-                onClick={() => setShowJwtModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-colors cursor-pointer"
-                title="Inspecter le jeton d'authentification JWT signé"
-              >
-                <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Session JWT</span>
-              </button>
-            )}
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleLogout}
-              leftIcon={<LogOut className="w-4 h-4" />}
+        {/* 🧪 Mode Démo : Changer de candidat (Dropdown compact) */}
+        <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-sand-200">
+          <label htmlFor="demo-profile-select" className="text-xs font-semibold text-sand-500 whitespace-nowrap flex items-center gap-1.5">
+            <KhatemSeal size={15} strokeWidth={1.5} />
+            <span className="text-[11px] font-bold text-indigo-950">Mode Démo :</span>
+          </label>
+          <div className="relative min-w-[250px]">
+            <select
+              id="demo-profile-select"
+              aria-label="Changer de profil démo"
+              value={user.id}
+              onChange={(e) => loginAsDemo(e.target.value)}
+              className="w-full appearance-none bg-sand-50 hover:bg-white text-indigo-950 border border-sand-300 rounded-xl pl-3 pr-8 py-1.5 text-xs font-semibold cursor-pointer shadow-2xs focus:outline-none focus:ring-1 focus:ring-indigo-950 transition-all"
             >
-              Déconnexion
-            </Button>
+              {availableDemoCandidates.map((c) => {
+                const statusLabel =
+                  c.dossier.statut === 'documents_manquants'
+                    ? 'Pièces manquantes'
+                    : c.dossier.statut === 'en_attente'
+                    ? 'En attente'
+                    : c.dossier.statut === 'valide'
+                    ? 'Conforme'
+                    : c.dossier.statut;
+                return (
+                  <option key={c.id} value={c.id}>
+                    {c.nomCourt} ({statusLabel.toUpperCase()})
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-sand-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Cartes de Statut & KPI Top-Bar (Grille uniforme grid-cols-4 de même hauteur) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-white/90 border border-sand-300 shadow-2xs border-l-4 border-l-emerald-600 flex flex-col justify-between h-full space-y-2">
+          <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
+            Programme d'Attribution
+          </span>
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+              <Award className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span className="truncate" title={programName}>{programName}</span>
+            </div>
+            <p className="text-[10px] text-sand-500 truncate mt-0.5" title={programCategory}>
+              {programCategory}
+            </p>
           </div>
         </div>
 
-        {/* Repères Clés du Dossier */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-2xl bg-white/80 border border-sand-300 space-y-1 shadow-subtle">
-            <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
-              Identifiant Unique de Dossier
+        <div className="p-4 rounded-xl bg-white/90 border border-sand-300 shadow-2xs flex flex-col justify-between h-full space-y-2">
+          <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
+            Identifiant Unique Dossier
+          </span>
+          <div className="flex items-center justify-between gap-1">
+            <span className="font-mono text-xs font-bold text-indigo-950 truncate" title={user.dossier.dossier_id}>
+              {user.dossier.dossier_id}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-indigo-950 truncate">
-                {user.dossier.dossier_id}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyId}
-                className="p-1 hover:bg-sand-200 rounded text-sand-500 transition-colors"
-                title="Copier l'identifiant du dossier"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/80 border border-sand-300 space-y-1 shadow-subtle">
-            <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
-              Date Officielle de Transmission
-            </span>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
-              <Calendar className="w-3.5 h-3.5 text-gold-600" />
-              <span>{formattedDate}</span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/80 border border-sand-300 space-y-1 shadow-subtle">
-            <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
-              Subvention Sollicitée
-            </span>
-            <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: primaryColor }}>
-              <Coins className="w-3.5 h-3.5" />
-              <span>{user.budget.montant_demande.toLocaleString('fr-FR')} MAD</span>
-              <span className="text-sand-500 font-normal">/ {user.budget.montant_total.toLocaleString('fr-FR')} MAD</span>
-            </div>
+            <button
+              type="button"
+              onClick={handleCopyId}
+              className="p-1 hover:bg-sand-200 rounded text-sand-500 transition-colors cursor-pointer shrink-0"
+              title="Copier l'identifiant du dossier"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
 
-        {/* Sélecteur Rapide de Candidats Démo */}
-        <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-xs bg-sand-200/70 p-3.5 rounded-2xl border border-sand-300">
-          <div className="flex items-center gap-2 text-indigo-950 font-bold">
-            <KhatemSeal size={18} strokeWidth={1.5} />
-            <span>Tester un autre profil de démonstration :</span>
+        <div className="p-4 rounded-xl bg-white/90 border border-sand-300 shadow-2xs flex flex-col justify-between h-full space-y-2">
+          <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
+            Date de Transmission
+          </span>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
+            <Calendar className="w-3.5 h-3.5 text-gold-600 shrink-0" />
+            <span>{formattedDate}</span>
           </div>
+        </div>
 
-          <div className="flex flex-wrap gap-2">
-            {availableDemoCandidates.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => loginAsDemo(c.id)}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                  c.id === user.id
-                    ? 'text-white shadow-sm'
-                    : 'bg-white hover:bg-sand-50 text-indigo-950 border border-sand-300'
-                }`}
-                style={c.id === user.id ? { backgroundColor: primaryColor } : {}}
-              >
-                {c.nomCourt} ({c.dossier.statut === 'documents_manquants' ? 'Pièces manquantes' : c.dossier.statut})
-              </button>
-            ))}
+        <div className="p-4 rounded-xl bg-white/90 border border-sand-300 shadow-2xs flex flex-col justify-between h-full space-y-2">
+          <span className="text-[10px] font-bold text-sand-500 uppercase tracking-wider block">
+            Subvention Sollicitée
+          </span>
+          <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: primaryColor }}>
+            <Coins className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{user.budget.montant_demande.toLocaleString('fr-FR')} MAD</span>
+            <span className="text-sand-500 font-normal text-[11px] shrink-0">/ {user.budget.montant_total.toLocaleString('fr-FR')} MAD</span>
           </div>
         </div>
       </div>

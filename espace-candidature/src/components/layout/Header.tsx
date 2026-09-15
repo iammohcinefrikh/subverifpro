@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
-import { User, LogOut, Home, PlusCircle } from 'lucide-react';
+import { User, LogOut, Home } from 'lucide-react';
 import { KhatemSeal, RegionalThemeSwitcher, useMoroccanTheme } from '../moroccan/MoroccanPatterns';
 
 export const Header: React.FC = () => {
@@ -58,25 +58,7 @@ export const Header: React.FC = () => {
               <span className="hidden sm:inline">Accueil</span>
             </Link>
 
-            {/* Nouveau dossier accessible aux candidats connectés */}
-            {isAuthenticated && user && (
-              <Link
-                to="/candidature"
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
-                  location.pathname === '/candidature'
-                    ? 'bg-terracotta-500 text-white shadow-sm shadow-terracotta-900/20'
-                    : 'text-terracotta-700 bg-terracotta-50 hover:bg-terracotta-100 border border-terracotta-200'
-                }`}
-                style={
-                  location.pathname === '/candidature'
-                    ? { backgroundColor: primaryColor }
-                    : {}
-                }
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Nouveau dossier</span>
-              </Link>
-            )}
+
 
             {/* Profil ou Connexion */}
             {isAuthenticated && user ? (

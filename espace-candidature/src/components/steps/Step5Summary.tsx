@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { DossierState } from '../../types/form';
 import { Button } from '../ui/Button';
 import { ErrorAlert } from '../feedback/ErrorAlert';
@@ -20,7 +20,8 @@ import {
   Check,
   RotateCcw,
   Clock,
-  FileSpreadsheet
+  FileSpreadsheet,
+  AlertTriangle
 } from 'lucide-react';
 import { CheckoutDocumentAuditCard } from '../documents/CheckoutDocumentAuditCard';
 import { auditDossierDocuments } from '../../services/documentAuditService';
@@ -34,6 +35,8 @@ interface Step5Props {
   isSubmitting: boolean;
   submissionError: { message: string; statusCode?: number } | null;
   onRetry: () => void;
+  isUpdate?: boolean;
+  applicationId?: string | null;
 }
 
 export const Step5Summary: React.FC<Step5Props> = ({
@@ -44,7 +47,9 @@ export const Step5Summary: React.FC<Step5Props> = ({
   onPrev,
   isSubmitting,
   submissionError,
-  onRetry
+  onRetry,
+  isUpdate,
+  applicationId
 }) => {
   const [certified, setCertified] = useState(dossier.certification_sur_honneur || false);
   const [certError, setCertError] = useState<string | null>(null);
@@ -53,6 +58,14 @@ export const Step5Summary: React.FC<Step5Props> = ({
   const [tempUrl, setTempUrl] = useState(getWebhookUrl());
   const [savedUrlFeedback, setSavedUrlFeedback] = useState(false);
   const [showMismatchConfirmModal, setShowMismatchConfirmModal] = useState(false);
+
+  // Verrou atomique synchrone au niveau du composant de soumission
+  const isSubmittingFormRef = useRef(false);
+  useEffect(() => {
+    if (!isSubmitting) {
+      isSubmittingFormRef.current = false;
+    }
+  }, [isSubmitting]);
 
   const selectedProgram = findProgram(dossier.projet.programme_id) || GRANT_PROGRAMS[0];
   const auditSummary = auditDossierDocuments(dossier.pieces, dossier.demandeur);
@@ -78,6 +91,119 @@ export const Step5Summary: React.FC<Step5Props> = ({
   const providedMandatoryCount = complianceStatus.filter((c) => c.mandatory && c.isProvided).length;
   const isFullyCompliant = mandatoryCount > 0 && providedMandatoryCount === mandatoryCount;
 
+  // Validation exhaustive et stricte de l'intégralité des champs (Étapes 1 à 5)
+  const validationChecklist = useMemo(() => {
+    // 1. Demandeur
+    const demandeurErrors: string[] = [];
+    if (!dossier.demandeur.nom_ou_raison_sociale?.trim()) {
+      demandeurErrors.push('Nom ou raison sociale de la structure manquant');
+    }
+    if (!dossier.demandeur.cin_representant?.trim()) {
+      demandeurErrors.push('Numéro de CNIE du représentant manquant');
+    }
+    if (!dossier.demandeur.nom_representant?.trim() || !dossier.demandeur.prenom_representant?.trim()) {
+      demandeurErrors.push('Nom et prénom du représentant légal manquants');
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!dossier.demandeur.email_representant?.trim() || !emailRegex.test(dossier.demandeur.email_representant.trim())) {
+      demandeurErrors.push('Adresse courriel de notification valide requise');
+    }
+    if (!dossier.demandeur.telephone_representant?.trim()) {
+      demandeurErrors.push('Numéro de téléphone direct manquant');
+    }
+    if (!dossier.demandeur.ville?.trim()) {
+      demandeurErrors.push('Ville du siège social manquante');
+    }
+
+    // 2. Projet
+    const projetErrors: string[] = [];
+    if (!dossier.projet.programme_id?.trim()) {
+      projetErrors.push('Programme de subvention non sélectionné');
+    }
+    if (!dossier.projet.objet_projet?.trim() || dossier.projet.objet_projet.trim().length < 5) {
+      projetErrors.push('Objet / Intitulé du projet trop court ou manquant');
+    }
+    if (!dossier.projet.description?.trim() || dossier.projet.description.trim().length < 10) {
+      projetErrors.push('Description détaillée du projet trop courte ou manquante');
+    }
+
+    // 3. Budget
+    const budgetErrors: string[] = [];
+    if (!dossier.budget.montant_total || Number(dossier.budget.montant_total) <= 0) {
+      budgetErrors.push('Montant total du projet invalide (doit être > 0 MAD)');
+    }
+    if (!dossier.budget.montant_demande || Number(dossier.budget.montant_demande) <= 0) {
+      budgetErrors.push('Montant de subvention demandé invalide (doit être > 0 MAD)');
+    }
+    if (Number(dossier.budget.montant_demande) > Number(dossier.budget.montant_total)) {
+      budgetErrors.push('La subvention demandée ne peut excéder le coût total du projet');
+    }
+    const hasValidExpenses = (dossier.budget.depenses || []).some((d) => Number(d.montant) > 0);
+    if (!hasValidExpenses) {
+      budgetErrors.push('Le plan d\'investissement doit comporter au moins une dépense chiffrée');
+    }
+
+    // 4. Pièces justificatives
+    const piecesErrors: string[] = [];
+    const missingDocs = complianceStatus.filter((c) => c.mandatory && !c.isProvided);
+    if (missingDocs.length > 0) {
+      missingDocs.forEach((m) => {
+        piecesErrors.push(`Pièce obligatoire manquante : ${m.name || m.document_type}`);
+      });
+    }
+    const pendingOcrDocs = dossier.pieces.filter((p) => p.statut_ocr === 'en_cours');
+    if (pendingOcrDocs.length > 0) {
+      piecesErrors.push(`${pendingOcrDocs.length} pièce(s) avec traitement OCR en cours`);
+    }
+
+    // 5. Certification
+    const certErrors: string[] = [];
+    if (!certified) {
+      certErrors.push('Déclaration et certification sur l\'honneur non cochée');
+    }
+
+    return [
+      {
+        step: 1,
+        title: 'Profil Demandeur',
+        isValid: demandeurErrors.length === 0,
+        errors: demandeurErrors
+      },
+      {
+        step: 2,
+        title: 'Projet Présenté',
+        isValid: projetErrors.length === 0,
+        errors: projetErrors
+      },
+      {
+        step: 3,
+        title: 'Plan Budgétaire',
+        isValid: budgetErrors.length === 0,
+        errors: budgetErrors
+      },
+      {
+        step: 4,
+        title: 'Pièces Justificatives',
+        isValid: piecesErrors.length === 0,
+        errors: piecesErrors
+      },
+      {
+        step: 5,
+        title: 'Certification sur l\'honneur',
+        isValid: certErrors.length === 0,
+        errors: certErrors
+      }
+    ];
+  }, [dossier, complianceStatus, certified]);
+
+  const allFieldsValid = useMemo(() => {
+    return validationChecklist.every((item) => item.isValid);
+  }, [validationChecklist]);
+
+  const totalErrorsCount = useMemo(() => {
+    return validationChecklist.reduce((acc, item) => acc + item.errors.length, 0);
+  }, [validationChecklist]);
+
   const handleSaveCustomUrl = () => {
     setCustomWebhookUrl(tempUrl);
     setCurrentUrl(tempUrl);
@@ -95,15 +221,30 @@ export const Step5Summary: React.FC<Step5Props> = ({
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Verrouillage anti-doublon immédiat
+    if (isSubmittingFormRef.current || isSubmitting) {
+      console.warn('[Step5Summary] Soumission déjà en cours, clic doublon ignoré.');
+      return;
+    }
+
     if (!certified) {
       setCertError('Vous devez obligatoirement certifier sur l\'honneur l\'exactitude des renseignements fournis pour soumettre la candidature.');
       return;
     }
+
+    if (!allFieldsValid) {
+      setCertError(`Transmission bloquée : ${totalErrorsCount} élément(s) obligatoire(s) manquant(s). Tous les champs et pièces doivent être dûment complétés et vérifiés.`);
+      return;
+    }
+
     if (auditSummary.aDesErreursBloquantes) {
       setShowMismatchConfirmModal(true);
       return;
     }
+
     setCertError(null);
+    isSubmittingFormRef.current = true;
     onSubmitDossier();
   };
 
@@ -122,8 +263,134 @@ export const Step5Summary: React.FC<Step5Props> = ({
           </p>
         </div>
 
-        <div className="text-xs text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-          <span className="font-semibold text-slate-700">Dossier prêt pour transmission</span>
+        <div className={`text-xs px-3 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 ${
+          allFieldsValid
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+            : 'bg-amber-50 text-amber-800 border-amber-300'
+        }`}>
+          {allFieldsValid ? (
+            <>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Dossier prêt pour transmission</span>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <span>{totalErrorsCount} champ(s) ou pièce(s) à compléter</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Alerte de validation bloquante */}
+      {certError && (
+        <div className="p-4 rounded-xl bg-rose-50 border-2 border-rose-300 shadow-sm flex items-start gap-3 text-xs text-rose-900 animate-fadeIn">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-extrabold text-sm block text-rose-950">
+              Transmission refusée : Dossier incomplet
+            </span>
+            <p className="text-rose-800 leading-relaxed font-medium">
+              {certError}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Carte d'audit de complétude intégrale avant soumission */}
+      <div className={`p-4 sm:p-5 rounded-2xl border-2 transition-all ${
+        allFieldsValid
+          ? 'bg-emerald-50/80 border-emerald-300 shadow-xs'
+          : 'bg-amber-50/90 border-amber-300 shadow-sm'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+          <div className="flex items-center gap-2.5">
+            {allFieldsValid ? (
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+            )}
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
+                Contrôle de complétude intégrale avant transmission Webhook
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {allFieldsValid
+                  ? 'Tous les champs obligatoires et pièces requises ont été vérifiés avec succès.'
+                  : `Le webhook n'autorise l'envoi que si tous les champs requis sont remplis (${totalErrorsCount} manquant(s)).`}
+              </p>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider self-start sm:self-auto ${
+            allFieldsValid
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              : 'bg-amber-100 text-amber-900 border border-amber-300'
+          }`}>
+            {allFieldsValid ? '✓ 100% Vérifié & Prêt' : `⚠ Incomplet (${totalErrorsCount})`}
+          </span>
+        </div>
+
+        {/* Grille dynamique des 5 étapes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-3">
+          {validationChecklist.map((item) => (
+            <div
+              key={item.step}
+              className={`p-3 rounded-xl border text-xs flex flex-col justify-between transition-all ${
+                item.isValid
+                  ? 'bg-white/90 border-emerald-200 text-slate-800'
+                  : 'bg-white border-amber-300 text-slate-900 shadow-xs ring-1 ring-amber-200'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-wider">Étape {item.step}</span>
+                  {item.isValid ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                      <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                      Vérifié
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                      À compléter
+                    </span>
+                  )}
+                </div>
+                <p className="font-bold text-xs text-slate-800 truncate" title={item.title}>
+                  {item.title}
+                </p>
+              </div>
+
+              {!item.isValid && (
+                <div className="mt-2.5 pt-2 border-t border-amber-100 space-y-1">
+                  <ul className="text-[10px] text-rose-700 space-y-0.5 list-disc list-inside">
+                    {item.errors.slice(0, 2).map((err, idx) => (
+                      <li key={idx} className="truncate" title={err}>
+                        {err}
+                      </li>
+                    ))}
+                    {item.errors.length > 2 && (
+                      <li className="font-medium text-slate-500">
+                        +{item.errors.length - 2} autre(s)...
+                      </li>
+                    )}
+                  </ul>
+                  {item.step < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => onJumpToStep(item.step)}
+                      className="w-full text-center text-[10px] font-bold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 py-1 rounded-md transition-colors cursor-pointer block mt-1.5 border border-brand-200"
+                    >
+                      Compléter Étape {item.step} →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -648,8 +915,23 @@ export const Step5Summary: React.FC<Step5Props> = ({
         )}
       </div>
 
+      {/* Maintien strict de l'identifiant pour ré-soumission */}
+      {isUpdate && applicationId && (
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse shrink-0"></span>
+            <span>
+              <strong>Maintien de l'identifiant :</strong> Votre identifiant de dossier unique reste strictement fixe et inchangé.
+            </span>
+          </div>
+          <code className="font-mono font-bold text-xs bg-white px-3 py-1.5 rounded-lg border border-emerald-300 text-indigo-950 self-start sm:self-auto">
+            {applicationId}
+          </code>
+        </div>
+      )}
+
       {/* Actions */}
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
         <Button
           type="button"
           variant="outline"
@@ -660,15 +942,27 @@ export const Step5Summary: React.FC<Step5Props> = ({
           Retour aux Pièces
         </Button>
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          isLoading={isSubmitting}
-          rightIcon={<CheckCircle2 className="w-4 h-4" />}
-        >
-          Soumettre ma candidature
-        </Button>
+        <div className="flex flex-col items-end gap-1.5">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            disabled={!allFieldsValid || isSubmitting}
+            isLoading={isSubmitting}
+            rightIcon={<CheckCircle2 className="w-4 h-4" />}
+            className={!allFieldsValid ? 'opacity-50 cursor-not-allowed bg-slate-400 hover:bg-slate-400' : ''}
+          >
+            {isSubmitting
+              ? (isUpdate ? 'Mise à jour...' : 'Transmission...')
+              : (isUpdate ? 'Mettre à jour le dossier' : 'Soumettre ma candidature')}
+          </Button>
+          {!allFieldsValid && (
+            <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Complétez les {totalErrorsCount} élément(s) obligatoires requis ci-dessus pour autoriser l'envoi.</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Modal d'avertissement de soumission avec document non ciblé */}
@@ -709,7 +1003,10 @@ export const Step5Summary: React.FC<Step5Props> = ({
                 type="button"
                 variant="outline"
                 className="w-full sm:flex-1 text-slate-600 hover:text-rose-700 hover:bg-rose-50"
+                disabled={isSubmitting || !allFieldsValid}
                 onClick={() => {
+                  if (isSubmittingFormRef.current || isSubmitting || !allFieldsValid) return;
+                  isSubmittingFormRef.current = true;
                   setShowMismatchConfirmModal(false);
                   onSubmitDossier();
                 }}

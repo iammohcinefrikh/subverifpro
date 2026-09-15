@@ -11,6 +11,7 @@ export type DossierStatus =
 
 export interface DossierMetadata {
   dossier_id: string;
+  application_id?: string;
   date_soumission: string; // ISO string
   statut: DossierStatus;
   pieces_requises: DocumentType[];
@@ -21,6 +22,7 @@ export interface DossierMetadata {
 
 export interface MockCandidateUser {
   id: string;
+  application_id?: string;
   email: string;
   password: string; // Mot de passe fictif de démo (en clair dans le cadre du mock)
   nomCourt: string;

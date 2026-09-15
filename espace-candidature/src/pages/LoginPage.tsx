@@ -55,7 +55,9 @@ export const LoginPage: React.FC = () => {
   const { primaryColor } = useMoroccanTheme();
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [duplicateAccountEmail, setDuplicateAccountEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbRegisteredEmails, setDbRegisteredEmails] = useState<Set<string>>(new Set());
 
   // Pour la sélection et simulation des candidats mockés en Sign Up
   const [selectedMockCandidate, setSelectedMockCandidate] = useState<MockCandidate | null>(null);
@@ -66,6 +68,7 @@ export const LoginPage: React.FC = () => {
   const {
     register: registerLogin,
     handleSubmit: handleSubmitLogin,
+    setValue: setLoginValue,
     formState: { errors: loginErrors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -75,11 +78,24 @@ export const LoginPage: React.FC = () => {
     },
   });
 
+  // Charger la liste des e-mails déjà enregistrés en base pour l'affichage visuel
+  React.useEffect(() => {
+    fetch('/api/candidate-users')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.candidates)) {
+          setDbRegisteredEmails(new Set(data.candidates.map((c: any) => String(c.email).toLowerCase().trim())));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Formulaire d'enregistrement
   const {
     register: registerSignUp,
     handleSubmit: handleSubmitSignUp,
     setValue: setSignUpValue,
+    watch: watchSignUp,
     formState: { errors: signUpErrors },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -91,6 +107,15 @@ export const LoginPage: React.FC = () => {
       confirm_password: 'password123',
     },
   });
+
+  const watchedSignUpEmail = watchSignUp('email');
+
+  // Détection en temps réel si l'e-mail est déjà enregistré
+  const isEmailAlreadyRegistered = useMemo(() => {
+    if (!watchedSignUpEmail) return false;
+    const clean = watchedSignUpEmail.trim().toLowerCase();
+    return dbRegisteredEmails.has(clean);
+  }, [watchedSignUpEmail, dbRegisteredEmails]);
 
   // Filtrage des candidats mockés selon la recherche
   const filteredCandidates = useMemo(() => {
@@ -122,7 +147,8 @@ export const LoginPage: React.FC = () => {
       const res = await login(data.email, data.password);
       if (res.success) {
         const stored = getStoredSession();
-        if (stored?.hasSubmittedDossier) {
+        // Tout candidat ayant un dossier ou présent en base est dirigé vers le dashboard
+        if (stored?.hasSubmittedDossier || (stored?.dossier && stored.dossier.pieces.length > 0) || stored?.dossier?.dossier_id) {
           navigate('/dashboard');
         } else {
           navigate('/candidature');
@@ -139,6 +165,16 @@ export const LoginPage: React.FC = () => {
 
   const onSignUpSubmit = async (data: SignUpFormData) => {
     setAuthError(null);
+    setDuplicateAccountEmail(null);
+
+    const cleanEmail = data.email.trim().toLowerCase();
+    if (dbRegisteredEmails.has(cleanEmail)) {
+      const errorMsg = 'Vous possédez déjà un compte ou un dossier avec cette adresse e-mail. Veuillez vous connecter pour accéder à votre tableau de bord.';
+      setAuthError(errorMsg);
+      setDuplicateAccountEmail(data.email.trim());
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -146,10 +182,28 @@ export const LoginPage: React.FC = () => {
       if (res.success) {
         navigate('/candidature');
       } else {
-        setAuthError(res.error || 'Erreur lors de la création du compte.');
+        const errorMsg = res.error || 'Erreur lors de la création du compte.';
+        setAuthError(errorMsg);
+        if (
+          errorMsg.toLowerCase().includes('déjà') ||
+          errorMsg.toLowerCase().includes('existe') ||
+          errorMsg.toLowerCase().includes('already') ||
+          errorMsg.toLowerCase().includes('compte')
+        ) {
+          setDuplicateAccountEmail(data.email.trim());
+        }
       }
-    } catch {
-      setAuthError('Une erreur inattendue est survenue.');
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Une erreur inattendue est survenue.';
+      setAuthError(errorMsg);
+      if (
+        errorMsg.toLowerCase().includes('déjà') ||
+        errorMsg.toLowerCase().includes('existe') ||
+        errorMsg.toLowerCase().includes('already') ||
+        errorMsg.toLowerCase().includes('compte')
+      ) {
+        setDuplicateAccountEmail(data.email.trim());
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -157,15 +211,18 @@ export const LoginPage: React.FC = () => {
 
   const handleSimulateCandidateSignUp = async (candidate: MockCandidate) => {
     setAuthError(null);
+    setDuplicateAccountEmail(null);
     setIsSubmitting(true);
     setSelectedMockCandidate(candidate);
+
+    const email = candidate.demandeur.email_representant;
 
     try {
       const res = await signUp(
         {
           prenom: candidate.demandeur.prenom_representant,
           nom: candidate.demandeur.nom_representant,
-          email: candidate.demandeur.email_representant,
+          email: email,
           password: 'password123',
           confirm_password: 'password123',
         },
@@ -175,10 +232,18 @@ export const LoginPage: React.FC = () => {
       if (res.success) {
         navigate('/candidature');
       } else {
-        setAuthError(res.error || "Erreur lors de l'enregistrement du candidat mocké.");
+        const errorMsg = res.error || "Erreur lors de l'enregistrement du candidat mocké.";
+        setAuthError(errorMsg);
+        if (errorMsg.toLowerCase().includes('déjà')) {
+          setDuplicateAccountEmail(email);
+        }
       }
-    } catch {
-      setAuthError('Erreur de simulation.');
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Erreur de simulation.';
+      setAuthError(errorMsg);
+      if (errorMsg.toLowerCase().includes('déjà')) {
+        setDuplicateAccountEmail(email);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -197,18 +262,19 @@ export const LoginPage: React.FC = () => {
     setAuthError(null);
     setIsSubmitting(true);
     try {
-      const targetId = candidateId || 'cand-1';
-      const success = await login(
-        availableDemoCandidates.find((c) => c.id === targetId)?.email || 'contact@atlastech-solutions.ma',
-        'password123'
-      );
+      const target = candidateId
+        ? availableDemoCandidates.find((c) => c.id === candidateId)
+        : (availableDemoCandidates[0] || null);
+
+      const targetEmail = target?.email || 'amina@bio-atlas.ma';
+      const success = await login(targetEmail, 'password123');
       if (success.success) {
         navigate('/dashboard');
       } else {
-        setAuthError(success.error || 'Échec de la connexion démo.');
+        setAuthError(success.error || 'Aucun utilisateur trouvé en base PostgreSQL. Veuillez créer un compte ou exécuter database/auth_users.sql.');
       }
     } catch {
-      setAuthError('Une erreur est survenue lors de la connexion démo.');
+      setAuthError('Une erreur est survenue lors de la connexion.');
     } finally {
       setIsSubmitting(false);
     }
@@ -415,12 +481,17 @@ export const LoginPage: React.FC = () => {
                 <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                   {displayedCandidates.map((candidate) => {
                     const isSelected = selectedMockCandidate?.id === candidate.id;
+                    const isAlreadyRegistered = dbRegisteredEmails.has(
+                      candidate.demandeur.email_representant.toLowerCase().trim()
+                    );
                     return (
                       <div
                         key={candidate.id}
                         className={`p-3 rounded-xl border transition-all ${
                           isSelected
                             ? 'bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-200'
+                            : isAlreadyRegistered
+                            ? 'bg-amber-50/40 hover:bg-amber-50/70 border-amber-200/90'
                             : 'bg-sand-50 hover:bg-white border-sand-300 hover:border-emerald-300'
                         }`}
                       >
@@ -434,34 +505,57 @@ export const LoginPage: React.FC = () => {
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sand-200 text-ink-800 border border-sand-300">
                                 {candidate.badge}
                               </span>
-                              {isSelected && (
+                              {isAlreadyRegistered && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full">
+                                  ✓ Déjà enregistré en base
+                                </span>
+                              )}
+                              {isSelected && !isAlreadyRegistered && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
                                   <Check className="w-3 h-3" /> Rempli
                                 </span>
                               )}
                             </div>
                             <p className="text-[11px] text-sand-500">
-                              {candidate.demandeur.prenom_representant} {candidate.demandeur.nom_representant} • {candidate.demandeur.ville}
+                              {candidate.demandeur.prenom_representant} {candidate.demandeur.nom_representant} • {candidate.demandeur.ville} • <span className="font-mono text-sand-600">{candidate.demandeur.email_representant}</span>
                             </p>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectMockCandidateForForm(candidate)}
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-ink-800 bg-white hover:bg-sand-100 border border-sand-300 transition-colors cursor-pointer"
-                            >
-                              Pré-remplir
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isSubmitting}
-                              onClick={() => handleSimulateCandidateSignUp(candidate)}
-                              className="px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              <Sparkles className="w-3 h-3" />
-                              <span>⚡ 1-clic</span>
-                            </button>
+                            {isAlreadyRegistered ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveTab('login');
+                                  setLoginValue('email', candidate.demandeur.email_representant);
+                                  setAuthError(null);
+                                  setDuplicateAccountEmail(null);
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-indigo-950 bg-amber-200/90 hover:bg-amber-300 border border-amber-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <span>Se connecter</span>
+                                <ArrowRight className="w-3.5 h-3.5 text-indigo-950" />
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectMockCandidateForForm(candidate)}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-ink-800 bg-white hover:bg-sand-100 border border-sand-300 transition-colors cursor-pointer"
+                                >
+                                  Pré-remplir
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isSubmitting}
+                                  onClick={() => handleSimulateCandidateSignUp(candidate)}
+                                  className="px-3 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  <Sparkles className="w-3 h-3" />
+                                  <span>⚡ 1-clic</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -484,12 +578,44 @@ export const LoginPage: React.FC = () => {
             {/* Formulaire classique */}
             <div className="bg-white rounded-2xl border border-sand-300 shadow-card p-6 space-y-4">
               {authError && (
-                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-900 flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold">Attention : </span>
-                    <span>{authError}</span>
+                <div
+                  className={`p-4 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                    authError.toLowerCase().includes('déjà') || authError.toLowerCase().includes('existe')
+                      ? 'bg-amber-50/95 border-amber-300 text-amber-950 shadow-xs'
+                      : 'bg-rose-50 border-rose-300 text-rose-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle
+                      className={`w-4 h-4 shrink-0 mt-0.5 ${
+                        authError.toLowerCase().includes('déjà') || authError.toLowerCase().includes('existe') ? 'text-amber-700' : 'text-rose-600'
+                      }`}
+                    />
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm">
+                        {authError.toLowerCase().includes('déjà') || authError.toLowerCase().includes('existe')
+                          ? 'Compte ou dossier déjà existant'
+                          : 'Attention :'}
+                      </p>
+                      <p className="leading-relaxed">{authError}</p>
+                    </div>
                   </div>
+
+                  {duplicateAccountEmail && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('login');
+                        setLoginValue('email', duplicateAccountEmail);
+                        setAuthError(null);
+                        setDuplicateAccountEmail(null);
+                      }}
+                      className="shrink-0 px-3.5 py-2 rounded-lg bg-indigo-950 hover:bg-indigo-900 text-white font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <span>Se connecter à mon dashboard</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -584,11 +710,35 @@ export const LoginPage: React.FC = () => {
                     <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider">Adresse E-mail</label>
                     <input
                       type="email"
-                      className="w-full px-3.5 py-2 text-sm rounded-xl border border-sand-300 bg-white text-ink-900 focus:outline-none focus:ring-2 focus:ring-terracotta-400"
+                      className={`w-full px-3.5 py-2 text-sm rounded-xl border ${
+                        isEmailAlreadyRegistered ? 'border-amber-400 ring-2 ring-amber-200 bg-amber-50/40' : 'border-sand-300 bg-white'
+                      } text-ink-900 focus:outline-none focus:ring-2 focus:ring-terracotta-400`}
                       placeholder="contact@entreprise.ma"
                       {...registerSignUp('email')}
                     />
                     {signUpErrors.email && <p className="text-xs text-rose-700">{signUpErrors.email.message}</p>}
+
+                    {isEmailAlreadyRegistered && (
+                      <div className="p-3 rounded-xl bg-amber-50/95 border border-amber-300 text-amber-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in shadow-xs">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                          <span className="font-semibold">Un compte ou dossier existe déjà avec cet e-mail.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('login');
+                            setLoginValue('email', watchedSignUpEmail.trim());
+                            setAuthError(null);
+                            setDuplicateAccountEmail(null);
+                          }}
+                          className="shrink-0 px-3 py-1.5 bg-indigo-950 hover:bg-indigo-900 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <span>Se connecter</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

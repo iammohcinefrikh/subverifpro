@@ -60,13 +60,15 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ payload, o
             <CheckCircle2 className="w-10 h-10" />
           </div>
           <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Candidature Enregistrée & Transmise
+            {payload.is_update ? 'Dossier Mis à Jour & Ré-évalué' : 'Candidature Enregistrée & Transmise'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Récépissé de Dépôt de Demande de Subvention
+            {payload.is_update ? 'Récépissé de Mise à Jour de Candidature' : 'Récépissé de Dépôt de Demande de Subvention'}
           </h1>
           <p className="text-sm text-slate-500 max-w-xl mx-auto">
-            Votre dossier complet et les pièces justificatives numérisées ont été transmis au service de vérification préalable.
+            {payload.is_update
+              ? 'Votre dossier a été mis à jour avec succès et réintégré dans le cycle global d\'évaluation. Votre identifiant de dossier unique reste strictement fixe et inchangé.'
+              : 'Votre dossier complet et les pièces justificatives numérisées ont été transmis au service de vérification préalable.'}
           </p>
         </div>
 
@@ -74,7 +76,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ payload, o
         <div className="bg-slate-900 text-white rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
             <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
-              Identifiant unique du dossier (UUID)
+              {payload.is_update ? 'Identifiant unique conservé (UUID)' : 'Identifiant unique du dossier (UUID)'}
             </span>
             <div className="flex items-center gap-2 justify-center sm:justify-start">
               <span className="font-mono text-sm sm:text-base font-bold text-brand-300">
@@ -211,7 +213,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ payload, o
             onClick={onReset}
             leftIcon={<RefreshCw className="w-4 h-4" />}
           >
-            Déposer une nouvelle candidature
+            {payload.is_update ? 'Modifier à nouveau' : 'Déposer une nouvelle candidature'}
           </Button>
 
           <div className="flex items-center gap-3">
