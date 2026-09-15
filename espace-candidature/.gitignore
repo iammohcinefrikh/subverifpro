@@ -7,16 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & Build artifacts
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Environment variables & Vercel
+.env
+.env.*
+!.env.example
+.vercel
+
+# Unneeded / Local scratch files & External projects
+subverifpro/
+scripts/
+subVerif-*.json
+*.tmp
+*.bak
+
+# Editor & OS files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj

@@ -9,10 +9,15 @@ export interface WebhookPiecePayload {
   champs_detectes: DetectedFields;
   fichier_base64: string;
   statut_ocr: string;
+  taille?: number;
+  storage_path?: string;
+  url?: string;
 }
 
 export interface WebhookDossierPayload {
   dossier_id: string;
+  application_id?: string;
+  is_update?: boolean;
   date_soumission: string; // ISO-8601
   demandeur: DemandeurFormData;
   projet: ProjetFormData;

@@ -1,4 +1,6 @@
 import type { MockCandidateUser } from '../types/auth';
+import type { DocumentType } from '../types/ocr';
+import { findProgram } from './programs';
 
 export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
   // 1. ATLAS TECH SOLUTIONS SARL (Statut : documents_manquants)
@@ -53,8 +55,8 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
       dossier_id: 'DOS-2026-ATLAS-8942',
       date_soumission: '2026-09-02T09:30:00.000Z',
       statut: 'documents_manquants',
-      pieces_requises: ['piece_identite', 'rc', 'statuts', 'rib', 'devis', 'projet_rd'],
-      remarques_instructeur: 'Dossier préliminaire recevable mais incomplet. Veuillez joindre un Relevé d\'Identité Bancaire (RIB) officiel au format PDF/image ainsi que le Devis détaillé signé de vos équipements informatiques.',
+      pieces_requises: (findProgram('prog-tatwir-rd')?.requirements.map((r) => r.document_type) || ['piece_identite', 'rc', 'statuts', 'rib', 'projet_rd', 'plan_financement', 'devis']) as DocumentType[],
+      remarques_instructeur: "Dossier préliminaire recevable mais incomplet. Veuillez joindre les Statuts de l'entreprise ainsi que le Devis détaillé signé de vos investissements.",
       pieces: [
         {
           nom_fichier: 'CNIE_EL_AMRANI_Youssef.pdf',
@@ -146,7 +148,7 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
       dossier_id: 'DOS-2026-BIO-3319',
       date_soumission: '2026-08-25T14:15:00.000Z',
       statut: 'en_cours_examen',
-      pieces_requises: ['piece_identite', 'rib', 'business_plan', 'devis', 'justificatif_statut'],
+      pieces_requises: (findProgram('prog-green-invest')?.requirements.map((r) => r.document_type) || ['piece_identite', 'rc', 'statuts', 'rib', 'business_plan', 'devis', 'etude_environnementale']) as DocumentType[],
       remarques_instructeur: 'Dossier complet et pièces conformes. Instruction technique en cours auprès des experts de la commission environnementale.',
       pieces: [
         {
@@ -248,7 +250,7 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
       dossier_id: 'DOS-2026-MENARA-1102',
       date_soumission: '2026-07-10T11:00:00.000Z',
       statut: 'valide',
-      pieces_requises: ['piece_identite', 'rc', 'statuts', 'rib', 'devis'],
+      pieces_requises: (findProgram('prog-tatwir-vert')?.requirements.map((r) => r.document_type) || ['piece_identite', 'rc', 'statuts', 'rib', 'business_plan', 'plan_investissement', 'devis', 'etude_environnementale']) as DocumentType[],
       remarques_instructeur: 'Félicitations ! La commission mixte a émis un avis très favorable. La convention d\'attribution de subvention pour un montant de 260 000 MAD a été signée.',
       decision_date: '2026-08-15T10:00:00.000Z',
       pieces: [
@@ -332,7 +334,7 @@ export const INITIAL_MOCK_USERS: MockCandidateUser[] = [
       dossier_id: 'DOS-2026-ARTISAN-9904',
       date_soumission: '2026-09-06T16:45:00.000Z',
       statut: 'en_attente',
-      pieces_requises: ['piece_identite', 'rib', 'devis', 'justificatif_activite'],
+      pieces_requises: (findProgram('prog-istitmar-tpe')?.requirements.map((r) => r.document_type) || ['piece_identite', 'rc', 'statuts', 'rib', 'liasses_fiscales', 'etats_financiers', 'plan_investissement', 'devis']) as DocumentType[],
       remarques_instructeur: 'Dossier déposé et enregistré. En attente de passage devant la commission de recevabilité.',
       pieces: [
         {

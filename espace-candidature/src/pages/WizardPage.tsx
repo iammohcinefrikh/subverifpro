@@ -24,7 +24,7 @@ const STEP_CONFIG = [
 
 export const WizardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, loginAsDemo, refreshUser, isAuthenticated } = useAuth();
+  const { user, refreshUser, isAuthenticated } = useAuth();
 
   // Le candidat doit obligatoirement s'identifier avant de déposer son dossier
   React.useEffect(() => {
@@ -40,6 +40,8 @@ export const WizardPage: React.FC = () => {
     isSubmitting,
     submissionError,
     confirmedPayload,
+    isUpdate,
+    applicationId,
     handleSaveDemandeur,
     handleSaveProjet,
     handleSaveBudget,
@@ -56,7 +58,7 @@ export const WizardPage: React.FC = () => {
     selectedCandidateId,
     handleSelectCandidate,
     currentCandidate
-  } = useWizardForm();
+  } = useWizardForm(user);
 
   // Si le candidat connecté correspond à un profil mocké, synchroniser le dossier
   const hasInitializedCandidate = React.useRef(false);
@@ -84,12 +86,42 @@ export const WizardPage: React.FC = () => {
     };
   }, [dossier.demandeur, user]);
 
+  // Soumission et redirection directe vers le Dashboard avec verrouillage anti-doublon
+  const isDirectSubmittingRef = React.useRef(false);
+  const handleDirectSubmit = async () => {
+    if (isDirectSubmittingRef.current) {
+      console.warn('[WizardPage] Soumission directe déjà en cours, appel doublon ignoré.');
+      return;
+    }
+    isDirectSubmittingRef.current = true;
+    try {
+      const payload = await handleSubmitDossier();
+      if (payload) {
+        registerWizardSubmissionAsCandidate(payload);
+        refreshUser();
+        navigate('/dashboard', { replace: true });
+      }
+    } finally {
+      isDirectSubmittingRef.current = false;
+    }
+  };
+
+  const handleDirectSimulate = () => {
+    const payload = handleSimulateSuccess();
+    if (payload) {
+      registerWizardSubmissionAsCandidate(payload);
+      refreshUser();
+      navigate('/dashboard', { replace: true });
+    }
+  };
+
+  const { primaryColor } = useMoroccanTheme();
+
   // Si le dossier a été soumis avec succès vers le webhook
   if (confirmedPayload) {
     const handleGoToDashboard = () => {
-      const candidateUser = registerWizardSubmissionAsCandidate(confirmedPayload);
+      registerWizardSubmissionAsCandidate(confirmedPayload);
       refreshUser();
-      loginAsDemo(candidateUser.id);
       navigate('/dashboard');
     };
 
@@ -102,7 +134,6 @@ export const WizardPage: React.FC = () => {
     );
   }
 
-  const { primaryColor } = useMoroccanTheme();
   const currentStepConfig = STEP_CONFIG[currentStep - 1] || STEP_CONFIG[0];
   const nextStepConfig = STEP_CONFIG[currentStep] || null;
 
@@ -140,6 +171,14 @@ export const WizardPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Badge Maintien strict de l'ID */}
+          {isUpdate && applicationId && (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-[11px] font-bold text-emerald-950">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0"></span>
+              <span>ID Fixe : <code className="font-mono text-[10px] text-indigo-950">{applicationId.slice(0, 13)}...</code></span>
+            </div>
+          )}
+
           {currentStep > 1 && (
             <button
               type="button"
@@ -171,11 +210,11 @@ export const WizardPage: React.FC = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Transmission...</span>
+                  <span>{isUpdate ? 'Mise à jour...' : 'Transmission...'}</span>
                 </>
               ) : (
                 <>
-                  <span>Soumettre le dossier</span>
+                  <span>{isUpdate ? 'Mettre à jour le dossier' : 'Soumettre le dossier'}</span>
                   <CheckCircle2 className="w-4 h-4" />
                 </>
               )}
@@ -230,12 +269,14 @@ export const WizardPage: React.FC = () => {
           <Step5Summary
             dossier={dossier}
             onJumpToStep={handleJumpToStep}
-            onSubmitDossier={handleSubmitDossier}
-            onSimulateSuccess={handleSimulateSuccess}
+            onSubmitDossier={handleDirectSubmit}
+            onSimulateSuccess={handleDirectSimulate}
             onPrev={() => handleJumpToStep(4)}
             isSubmitting={isSubmitting}
             submissionError={submissionError}
-            onRetry={handleSubmitDossier}
+            onRetry={handleDirectSubmit}
+            isUpdate={isUpdate}
+            applicationId={applicationId}
           />
         )}
       </div>
