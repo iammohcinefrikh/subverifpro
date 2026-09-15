@@ -3,11 +3,18 @@ import { Prisma } from "@prisma/client"
 import { computePriority, type PriorityInfo } from "@/lib/utils/priority"
 
 export interface DashboardKPIs {
+  /** Applications with status CONFORME, INCOMPLETE or PENDING. */
   totalApplications: number
+  /** Applications with status CONFORME. */
   completedDossiers: number
+  /** Applications with status INCOMPLETE. */
   incompleteDossiers: number
-  toVerifyDossiers: number
-  pendingComplements: number
+  /** Applications with status PENDING. */
+  pendingDossiers: number
+  /** Applications with an overall eligibility status of PASS or WARNING and that
+   *  are not in PENDING, ACCEPTED or REJECTED. */
+  eligibleDossiers: number
+  /** Applications whose project start date falls within the next 10 days. */
   urgentDossiers: number
 }
 
@@ -55,9 +62,13 @@ export interface DossierRowItem {
   hasPendingComplement: boolean
   eligibilityResult: string
   eligibilityLabel: string
+  eligibilityScore: number | null
+  missingDocsCount: number
+  expiredDocsCount: number
   problemText: string
   deadline: Date | null
   deadlineFormatted: string
+  projectStartDate: Date | null
   priority: PriorityInfo
   isUrgent: boolean
   totalAmount: number
@@ -65,10 +76,17 @@ export interface DossierRowItem {
   submittedAt: Date | null
 }
 
+/** Number of days ahead that marks a project as urgent. */
+export const URGENT_WINDOW_DAYS = 10
+
+/** Minimum eligibility score (`total_points`) required to keep a dossier that
+ *  still has missing/expired documents in the priority list. */
+export const MIN_ELIGIBILITY_FOR_DOCS = 50
+
 export const dossierInclude = {
   program: true,
   complianceCheck: true,
-  eligibilityAssessment: true,
+  applicationEligibilityResult: true,
   complementRequests: {
     orderBy: { deadline: "asc" as const },
   },
@@ -78,17 +96,56 @@ export type ApplicationWithRelations = Prisma.ApplicationGetPayload<{
   include: typeof dossierInclude
 }>
 
+export type NormalizedEligibility = "PASS" | "WARNING" | "FAIL" | "NON_EVALUE"
+
+/**
+ * Normalizes the `overall_status` values coming from
+ * `application_eligibility_results` (PASS / WARNING / FAILED) into a stable
+ * three-state vocabulary used across the dashboard.
+ */
+export function normalizeEligibilityStatus(
+  raw?: string | null
+): NormalizedEligibility {
+  const value = (raw || "").toUpperCase()
+  if (value === "PASS" || value === "PASSED" || value === "ELIGIBLE") return "PASS"
+  if (value === "WARNING" || value === "ATTENTION" || value === "A_REVOIR") return "WARNING"
+  if (value === "FAIL" || value === "FAILED" || value === "NON_ELIGIBLE" || value === "REJECTED") {
+    return "FAIL"
+  }
+  return "NON_EVALUE"
+}
+
+export function getUrgentWindow(now: Date = new Date()) {
+  return {
+    from: now,
+    to: new Date(now.getTime() + URGENT_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+  }
+}
+
+export function isProjectUrgent(
+  projectStartDate: Date | null,
+  now: Date = new Date()
+): boolean {
+  if (!projectStartDate) return false
+  const { from, to } = getUrgentWindow(now)
+  const start = projectStartDate.getTime()
+  return start >= from.getTime() && start <= to.getTime()
+}
+
 export function mapApplicationToDossierRow(
   app: ApplicationWithRelations
 ): DossierRowItem {
   const comp = app.complianceCheck
-  const elig = app.eligibilityAssessment
+  const elig = app.applicationEligibilityResult
   const complementRequests = app.complementRequests ?? []
   const compl = complementRequests[0]
 
   const completenessRate = comp ? Number(comp.completenessRate || 0) : 0
   const missingCount = comp?.missingCount || 0
   const expiredCount = comp?.expiredCount || 0
+
+  const eligibilityResult = normalizeEligibilityStatus(elig?.overallStatus)
+  const eligibilityLabel = formatEligibilityLabel(eligibilityResult)
 
   // Compute human-friendly problem string
   let problemText = "—"
@@ -98,9 +155,11 @@ export function mapApplicationToDossierRow(
     problemText = `${missingCount} pièce${missingCount > 1 ? "s" : ""} manquante${missingCount > 1 ? "s" : ""}`
   } else if (expiredCount > 0) {
     problemText = `${expiredCount} pièce${expiredCount > 1 ? "s" : ""} expirée${expiredCount > 1 ? "s" : ""}`
-  } else if (elig?.failedCriteria && elig.failedCriteria.length > 0) {
-    problemText = `${elig.failedCriteria.length} critère${elig.failedCriteria.length > 1 ? "s" : ""} non conforme${elig.failedCriteria.length > 1 ? "s" : ""}`
-  } else if (app.status === "A_VERIFIER" || app.status === "SUBMITTED") {
+  } else if (eligibilityResult === "FAIL") {
+    problemText = "Non éligible"
+  } else if (eligibilityResult === "WARNING") {
+    problemText = "Éligibilité à vérifier"
+  } else if (app.status === "PENDING" || app.status === "SUBMITTED") {
     problemText = "Vérification requise"
   }
 
@@ -109,11 +168,13 @@ export function mapApplicationToDossierRow(
     ? deadline.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
     : "—"
 
+  const projectStartDate = app.projectStartDate ? new Date(app.projectStartDate) : null
+  const isUrgent = isProjectUrgent(projectStartDate)
+
   const priority = computePriority({
+    projectStartDate,
     deadline,
-    missingCount,
-    expiredCount,
-    eligibilityResult: elig?.result,
+    eligibilityScore: elig?.totalPoints ?? null,
   })
 
   const refShort = `APP-${app.applicationId.slice(0, 6).toUpperCase()}`
@@ -133,13 +194,17 @@ export function mapApplicationToDossierRow(
     completenessRate,
     hasComplianceCheck: Boolean(comp),
     hasPendingComplement,
-    eligibilityResult: elig?.result || "NON_EVALUE",
-    eligibilityLabel: formatEligibilityLabel(elig?.result || "NON_EVALUE"),
+    eligibilityResult,
+    eligibilityLabel,
+    eligibilityScore: elig?.totalPoints ?? null,
+    missingDocsCount: missingCount,
+    expiredDocsCount: expiredCount,
     problemText,
     deadline,
     deadlineFormatted,
+    projectStartDate,
     priority,
-    isUrgent: priority.level === "HAUTE",
+    isUrgent,
     totalAmount: Number(app.totalAmount || 0),
     requestedAmount: Number(app.requestedAmount || 0),
     submittedAt: app.submittedAt ? new Date(app.submittedAt) : null,
@@ -149,79 +214,67 @@ export function mapApplicationToDossierRow(
 export async function getDashboardData() {
   try {
     const now = new Date()
-    const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000)
+    const urgentWindow = getUrgentWindow(now)
 
     // Execute queries in parallel
     const [
-      applicationsCount,
-      completedChecksCount,
-      incompleteChecksCount,
-      toVerifyCount,
-      pendingComplementsCount,
-      urgentComplementsCount,
+      receivedCount,
+      completedCount,
+      incompleteCount,
+      pendingCount,
+      eligibleCount,
+      urgentCount,
       allApplications,
       complianceChecks,
-      eligibilityAssessments,
       upcomingComplements,
     ] = await Promise.all([
-      // 1. Demandes reçues
-      prisma.application.count().catch(() => 0),
-
-      // 2. Dossiers complets
-      prisma.complianceCheck
+      // 1. Dossiers reçus (CONFORME, INCOMPLETE, PENDING)
+      prisma.application
         .count({
-          where: {
-            OR: [
-              { status: { in: ["COMPLET", "complet", "COMPLETE"] } },
-              { completenessRate: { gte: 100 } },
-            ],
-          },
+          where: { status: { in: ["CONFORME", "INCOMPLETE", "PENDING"] } },
         })
         .catch(() => 0),
 
-      // 3. Dossiers incomplets
-      prisma.complianceCheck
-        .count({
-          where: {
-            OR: [
-              { status: { in: ["INCOMPLET", "incomplet", "INCOMPLETE"] } },
-              { completenessRate: { lt: 100 } },
-            ],
-          },
-        })
+      // 2. Dossiers complets (CONFORME)
+      prisma.application
+        .count({ where: { status: "CONFORME" } })
         .catch(() => 0),
 
-      // 4. Dossiers à vérifier
+      // 3. Dossiers incomplets (INCOMPLETE)
+      prisma.application
+        .count({ where: { status: "INCOMPLETE" } })
+        .catch(() => 0),
+
+      // 4. Dossiers en traitement (PENDING)
+      prisma.application
+        .count({ where: { status: "PENDING" } })
+        .catch(() => 0),
+
+      // 5. Dossiers éligibles (overall_status PASS/WARNING, not PENDING/ACCEPTED/REJECTED)
       prisma.application
         .count({
           where: {
-            status: {
-              in: ["A_VERIFIER", "à_vérifier", "SUBMITTED", "submitted", "EN_COURS"],
+            status: { notIn: ["PENDING", "ACCEPTED", "REJECTED"] },
+            applicationEligibilityResult: {
+              is: { overallStatus: { in: ["PASS", "WARNING"] } },
             },
           },
         })
         .catch(() => 0),
 
-      // 5. Compléments en attente
-      prisma.complementRequest
+      // 6. Dossiers urgents (project start date within the next 10 days)
+      prisma.application
         .count({
           where: {
-            status: { in: ["EN_ATTENTE", "en_attente", "PENDING", "pending"] },
+            projectStartDate: {
+              gte: urgentWindow.from,
+              lte: urgentWindow.to,
+            },
           },
         })
         .catch(() => 0),
 
-      // 6. Dossiers urgents (deadline <= 48h)
-      prisma.complementRequest
-        .count({
-          where: {
-            deadline: { lte: in48Hours },
-            status: { in: ["EN_ATTENTE", "en_attente", "PENDING", "pending"] },
-          },
-        })
-        .catch(() => 0),
-
-      // Applications list for table & status distribution
+      // Applications list for table & status/eligibility distribution
       prisma.application
         .findMany({
           take: 50,
@@ -230,18 +283,10 @@ export async function getDashboardData() {
         })
         .catch(() => []),
 
-      // Compliance checks for distribution
+      // Compliance checks for completeness distribution
       prisma.complianceCheck
         .findMany({
           select: { completenessRate: true },
-          take: 200,
-        })
-        .catch(() => []),
-
-      // Eligibility assessments for distribution
-      prisma.eligibilityAssessment
-        .findMany({
-          select: { result: true },
           take: 200,
         })
         .catch(() => []),
@@ -273,12 +318,11 @@ export async function getDashboardData() {
 
     const statusColors: Record<string, string> = {
       SUBMITTED: "var(--color-stone-400, #a8a29e)",
-      A_VERIFIER: "var(--color-amber-500, #f59e0b)",
-      COMPLET: "var(--color-emerald-500, #10b981)",
-      INCOMPLET: "var(--color-rose-500, #f43f5e)",
-      COMPLEMENT_DEMANDE: "var(--color-blue-500, #3b82f6)",
-      ELIGIBLE: "var(--color-emerald-600, #059669)",
-      NON_ELIGIBLE: "var(--color-stone-700, #44403c)",
+      INCOMPLETE: "var(--color-amber-500, #f59e0b)",
+      PENDING: "var(--color-blue-500, #3b82f6)",
+      ACCEPTED: "var(--color-emerald-600, #059669)",
+      REJECTED: "var(--color-rose-500, #f43f5e)",
+      CONFORME: "var(--color-emerald-500, #10b981)",
     }
 
     const statusDistribution: StatusDistributionItem[] = Array.from(statusMap.entries()).map(
@@ -312,18 +356,21 @@ export async function getDashboardData() {
       { range: "75 - 100%", count: range75_100, percentage: Math.round((range75_100 / totalChecks) * 100) },
     ]
 
-    // --- Eligibility Distribution ---
-    const eligMap = new Map<string, number>()
-    eligibilityAssessments.forEach((e) => {
-      const res = (e.result || "NON_EVALUE").toUpperCase()
-      eligMap.set(res, (eligMap.get(res) || 0) + 1)
+    // --- Eligibility Distribution (overall_status of application_eligibility_results) ---
+    const eligMap = new Map<NormalizedEligibility, number>()
+    allApplications.forEach((app) => {
+      // Only count applications that aren't PENDING, REJECTED or ACCEPTED.
+      if (app.status && ["PENDING", "REJECTED", "ACCEPTED"].includes(app.status)) return
+      if (!app.applicationEligibilityResult) return
+      const result = normalizeEligibilityStatus(app.applicationEligibilityResult.overallStatus)
+      if (result === "NON_EVALUE") return
+      eligMap.set(result, (eligMap.get(result) || 0) + 1)
     })
 
-    const eligColors: Record<string, string> = {
-      ELIGIBLE: "var(--color-emerald-500, #10b981)",
-      NON_ELIGIBLE: "var(--color-rose-500, #f43f5e)",
-      A_REVOIR: "var(--color-amber-500, #f59e0b)",
-      ATTENTION: "var(--color-amber-500, #f59e0b)",
+    const eligColors: Record<NormalizedEligibility, string> = {
+      PASS: "var(--color-emerald-500, #10b981)",
+      WARNING: "var(--color-amber-500, #f59e0b)",
+      FAIL: "var(--color-rose-500, #f43f5e)",
       NON_EVALUE: "var(--color-stone-400, #a8a29e)",
     }
 
@@ -332,7 +379,7 @@ export async function getDashboardData() {
         result,
         label: formatEligibilityLabel(result),
         count,
-        fill: eligColors[result] || "var(--color-stone-400, #a8a29e)",
+        fill: eligColors[result],
       })
     )
 
@@ -356,26 +403,36 @@ export async function getDashboardData() {
       }
     })
 
-    // --- "À traiter" Prioritized Table Rows ---
-    const dossiersATraiter: DossierRowItem[] = allApplications.map(mapApplicationToDossierRow)
-
-    // Sort prioritized table: HAUTE first, then MOYENNE, then BASSE
-    dossiersATraiter.sort((a, b) => {
-      const order: Record<string, number> = { HAUTE: 0, MOYENNE: 1, BASSE: 2 }
-      const diff = order[a.priority.level] - order[b.priority.level]
-      if (diff !== 0) return diff
-      if (a.deadline && b.deadline) return a.deadline.getTime() - b.deadline.getTime()
-      return 0
-    })
+    // --- "À instruire en priorité" Rows ---
+    // Only evaluated dossiers (PASS/WARNING), excluding already-processed ones
+    // (ACCEPTED/REJECTED). Dossiers with missing/expired documents are kept only
+    // when their eligibility score is good enough to justify chasing the docs.
+    const dossiersATraiter: DossierRowItem[] = allApplications
+      .map(mapApplicationToDossierRow)
+      .filter((row) => {
+        if (row.eligibilityResult !== "PASS" && row.eligibilityResult !== "WARNING") return false
+        const status = row.status.toUpperCase()
+        if (status === "ACCEPTED" || status === "REJECTED") return false
+        const hasDocumentIssues = row.missingDocsCount + row.expiredDocsCount > 0
+        if (hasDocumentIssues && (row.eligibilityScore ?? 0) < MIN_ELIGIBILITY_FOR_DOCS) {
+          return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        if (b.priority.score !== a.priority.score) return b.priority.score - a.priority.score
+        if (a.deadline && b.deadline) return a.deadline.getTime() - b.deadline.getTime()
+        return 0
+      })
 
     return {
       kpis: {
-        totalApplications: applicationsCount,
-        completedDossiers: completedChecksCount,
-        incompleteDossiers: incompleteChecksCount,
-        toVerifyDossiers: toVerifyCount,
-        pendingComplements: pendingComplementsCount,
-        urgentDossiers: urgentComplementsCount,
+        totalApplications: receivedCount,
+        completedDossiers: completedCount,
+        incompleteDossiers: incompleteCount,
+        pendingDossiers: pendingCount,
+        eligibleDossiers: eligibleCount,
+        urgentDossiers: urgentCount,
       },
       statusDistribution,
       completenessDistribution,
@@ -391,8 +448,8 @@ export async function getDashboardData() {
         totalApplications: 0,
         completedDossiers: 0,
         incompleteDossiers: 0,
-        toVerifyDossiers: 0,
-        pendingComplements: 0,
+        pendingDossiers: 0,
+        eligibleDossiers: 0,
         urgentDossiers: 0,
       },
       statusDistribution: [],
@@ -408,20 +465,16 @@ export function formatStatusLabel(status: string): string {
   switch (status.toUpperCase()) {
     case "SUBMITTED":
       return "Reçu"
-    case "A_VERIFIER":
-      return "À vérifier"
-    case "COMPLET":
-      return "Complet"
-    case "INCOMPLET":
+    case "INCOMPLETE":
       return "Incomplet"
-    case "COMPLEMENT_DEMANDE":
-      return "Complément demandé"
-    case "ELIGIBLE":
-      return "Éligible"
-    case "NON_ELIGIBLE":
-      return "Non éligible"
-    case "TRAITE":
-      return "Traité"
+    case "PENDING":
+      return "En traitement"
+    case "ACCEPTED":
+      return "Accepté"
+    case "REJECTED":
+      return "Rejeté"
+    case "CONFORME":
+      return "Complet"
     default:
       return status
   }
@@ -429,14 +482,12 @@ export function formatStatusLabel(status: string): string {
 
 export function formatEligibilityLabel(result: string): string {
   switch (result.toUpperCase()) {
-    case "ELIGIBLE":
+    case "PASS":
       return "Éligible"
-    case "NON_ELIGIBLE":
+    case "WARNING":
+      return "À vérifier"
+    case "FAIL":
       return "Non éligible"
-    case "A_REVOIR":
-      return "À revoir"
-    case "ATTENTION":
-      return "Attention"
     case "NON_EVALUE":
       return "Non évalué"
     default:

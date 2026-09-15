@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { DossierRowItem } from "@/lib/queries/dashboard"
+import { statusBadgeClass } from "@/lib/status-tone"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 
@@ -15,39 +16,14 @@ const priorityBarClass: Record<string, string> = {
 }
 
 function StatusBadge({ status, label }: { status: string; label: string }) {
-  switch (status.toUpperCase()) {
-    case "COMPLET":
-      return (
-        <Badge variant="outline" className="border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium h-5">
-          {label}
-        </Badge>
-      )
-    case "INCOMPLET":
-      return (
-        <Badge variant="outline" className="border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[10px] font-medium h-5">
-          {label}
-        </Badge>
-      )
-    case "A_VERIFIER":
-    case "SUBMITTED":
-      return (
-        <Badge variant="outline" className="border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-medium h-5">
-          {label}
-        </Badge>
-      )
-    case "COMPLEMENT_DEMANDE":
-      return (
-        <Badge variant="outline" className="border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[10px] font-medium h-5">
-          {label}
-        </Badge>
-      )
-    default:
-      return (
-        <Badge variant="outline" className="border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-[10px] font-medium h-5">
-          {label}
-        </Badge>
-      )
-  }
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] font-medium h-5 ${statusBadgeClass(status)}`}
+    >
+      {label}
+    </Badge>
+  )
 }
 
 export function PriorityDossiers({ dossiers }: PriorityDossiersProps) {
@@ -82,7 +58,7 @@ export function PriorityDossiers({ dossiers }: PriorityDossiersProps) {
           {top.map((item) => (
             <Link
               key={item.id}
-              href={`/dashboard/dossiers/${item.applicationId}`}
+              href={`/dashboard/dossiers/${item.applicationId}?from=dashboard`}
               className="group flex items-center gap-3 p-3 rounded-lg border border-stone-200 dark:border-stone-800 bg-card shadow-xs hover:border-stone-300 dark:hover:border-stone-700 transition-colors"
             >
               <span

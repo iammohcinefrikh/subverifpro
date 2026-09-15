@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { DossierRowItem } from "@/lib/queries/dashboard"
+import { statusBadgeClass } from "@/lib/status-tone"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Search01Icon,
@@ -35,17 +36,21 @@ interface DossiersTableProps {
   dossiers: DossierRowItem[]
   title: string
   description: string
-  /** Show the client-side "statut" select — only meaningful for the "Tous les dossiers" view. */
+  /** Origin encoded on the detail links so the detail page can return here. */
+  from: string
+  /** Show the client-side "statut" select — only meaningful for views that span
+   *  multiple statuses (consolidated view or "Reçus"). */
   showStatusFilter: boolean
 }
 
 const statusOptions: { value: string; label: string }[] = [
   { value: "ALL", label: "Tous les statuts" },
   { value: "SUBMITTED", label: "Reçu" },
-  { value: "A_VERIFIER", label: "À vérifier" },
-  { value: "COMPLET", label: "Complet" },
-  { value: "INCOMPLET", label: "Incomplet" },
-  { value: "COMPLEMENT_DEMANDE", label: "Complément demandé" },
+  { value: "CONFORME", label: "Complet" },
+  { value: "INCOMPLETE", label: "Incomplet" },
+  { value: "PENDING", label: "En traitement" },
+  { value: "ACCEPTED", label: "Accepté" },
+  { value: "REJECTED", label: "Rejeté" },
 ]
 
 const priorityOptions: { value: string; label: string }[] = [
@@ -66,6 +71,7 @@ export function DossiersTable({
   dossiers,
   title,
   description,
+  from,
   showStatusFilter,
 }: DossiersTableProps) {
   const [searchTerm, setSearchTerm] = React.useState("")
@@ -73,6 +79,9 @@ export function DossiersTable({
   const [priorityFilter, setPriorityFilter] = React.useState<string>("ALL")
   const [currentPage, setCurrentPage] = React.useState(1)
   const pageSize = 10
+
+  const detailHref = (applicationId: string) =>
+    `/dashboard/dossiers/${applicationId}?from=${encodeURIComponent(from)}`
 
   const filteredDossiers = React.useMemo(() => {
     return dossiers.filter((item) => {
@@ -112,60 +121,33 @@ export function DossiersTable({
     setCurrentPage(1)
   }
 
-  const renderStatusBadge = (status: string, label: string) => {
-    switch (status.toUpperCase()) {
-      case "COMPLET":
-        return (
-          <Badge variant="outline" className="border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium h-5">
-            {label}
-          </Badge>
-        )
-      case "INCOMPLET":
-        return (
-          <Badge variant="outline" className="border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-[11px] font-medium h-5">
-            {label}
-          </Badge>
-        )
-      case "A_VERIFIER":
-      case "SUBMITTED":
-        return (
-          <Badge variant="outline" className="border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[11px] font-medium h-5">
-            {label}
-          </Badge>
-        )
-      case "COMPLEMENT_DEMANDE":
-        return (
-          <Badge variant="outline" className="border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[11px] font-medium h-5">
-            {label}
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="outline" className="border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-[11px] font-medium h-5">
-            {label}
-          </Badge>
-        )
-    }
-  }
+  const renderStatusBadge = (status: string, label: string) => (
+    <Badge
+      variant="outline"
+      className={`text-[11px] font-medium h-5 ${statusBadgeClass(status)}`}
+    >
+      {label}
+    </Badge>
+  )
 
   const renderEligibilityIcon = (result: string, label: string) => {
     switch (result.toUpperCase()) {
-      case "ELIGIBLE":
+      case "PASS":
         return (
           <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium text-xs">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} strokeWidth={2.5} className="shrink-0 text-emerald-600" />
             <span>{label}</span>
           </div>
         )
-      case "NON_ELIGIBLE":
+      case "FAIL":
+      case "FAILED":
         return (
           <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-medium text-xs">
             <HugeiconsIcon icon={Cancel01Icon} size={14} strokeWidth={2.5} className="shrink-0 text-rose-600" />
             <span>{label}</span>
           </div>
         )
-      case "A_REVOIR":
-      case "ATTENTION":
+      case "WARNING":
         return (
           <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-medium text-xs">
             <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2.5} className="shrink-0 text-amber-600" />
@@ -183,21 +165,21 @@ export function DossiersTable({
     switch (priority.level) {
       case "HAUTE":
         return (
-          <div className="flex items-center gap-1 text-rose-700 dark:text-rose-400 font-semibold text-xs" title="Priorité Haute (< 48h ou non-conformité)">
+          <div className="flex items-center gap-1 text-rose-700 dark:text-rose-400 font-semibold text-xs" title={`Priorité haute — score ${priority.score}`}>
             <HugeiconsIcon icon={AlertCircleIcon} size={15} strokeWidth={2.5} className="text-rose-600 dark:text-rose-400" />
             <span className="hidden xl:inline text-[11px]">Haute</span>
           </div>
         )
       case "MOYENNE":
         return (
-          <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium text-xs" title="Priorité Moyenne">
+          <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium text-xs" title={`Priorité moyenne — score ${priority.score}`}>
             <HugeiconsIcon icon={AlertCircleIcon} size={14} strokeWidth={2} className="text-amber-500 dark:text-amber-400" />
             <span className="hidden xl:inline text-[11px]">Moyenne</span>
           </div>
         )
       case "BASSE":
         return (
-          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium text-xs" title="Priorité Normale">
+          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium text-xs" title={`Priorité normale — score ${priority.score}`}>
             <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} strokeWidth={2} className="text-emerald-500 dark:text-emerald-400" />
             <span className="hidden xl:inline text-[11px]">Normale</span>
           </div>
@@ -294,7 +276,7 @@ export function DossiersTable({
                   {/* Dossier Ref */}
                   <TableCell className="font-mono text-xs font-semibold py-3 pl-3">
                     <Link
-                      href={`/dashboard/dossiers/${item.applicationId}`}
+                      href={detailHref(item.applicationId)}
                       className="text-stone-900 dark:text-stone-100 hover:text-primary hover:underline underline-offset-2 flex items-center gap-1 group-hover:text-primary transition-colors"
                     >
                       <span>{item.reference}</span>
@@ -373,7 +355,7 @@ export function DossiersTable({
                       size="icon-xs"
                       className="size-7 rounded text-muted-foreground hover:text-foreground"
                     >
-                      <Link href={`/dashboard/dossiers/${item.applicationId}`} title="Voir le détail du dossier">
+                      <Link href={detailHref(item.applicationId)} title="Voir le détail du dossier">
                         <HugeiconsIcon icon={ArrowRight01Icon} size={14} strokeWidth={2} />
                         <span className="sr-only">Voir</span>
                       </Link>

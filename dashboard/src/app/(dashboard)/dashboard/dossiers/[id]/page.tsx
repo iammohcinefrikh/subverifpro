@@ -1,16 +1,16 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getDossierDetail } from "@/lib/queries/dossier"
+import { resolveDossierOrigin } from "@/lib/dossier-nav"
 import { DossierHeader } from "@/components/dossier/dossier-header"
 import { DemandeurInfo } from "@/components/dossier/demandeur-info"
 import { CompletudeSection } from "@/components/dossier/completude-section"
 import { EligibiliteSection } from "@/components/dossier/eligibilite-section"
-import { ComplementsSection } from "@/components/dossier/complements-section"
 import { AiSynthesis } from "@/components/dossier/ai-synthesis"
-import { HistoriqueSection } from "@/components/dossier/historique-section"
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ from?: string | string[] }>
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -29,26 +29,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export const dynamic = "force-dynamic"
 
-export default async function DossierDetailPage({ params }: PageProps) {
+export default async function DossierDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
+  const { from: fromParam } = await searchParams
+  const rawFrom = Array.isArray(fromParam) ? fromParam[0] : fromParam
   const data = await getDossierDetail(id)
 
   if (!data) {
     notFound()
   }
 
+  // Return to the list the user navigated from (falls back to all dossiers).
+  const origin = resolveDossierOrigin(rawFrom)
+
   return (
     <div className="space-y-6 pb-12">
       {/* 1. Sticky Navigation & Status Header */}
-      <DossierHeader data={data} />
+      <DossierHeader data={data} backHref={origin.href} backLabel={origin.label} />
 
-      {/* 2. Informations du demandeur & Projet */}
+      {/* 2. Synthèse IA */}
+      <section aria-label="Synthèse de l'intelligence artificielle">
+        <AiSynthesis aiAnalysis={data.aiAnalysis} />
+      </section>
+
+      {/* 3. Informations du demandeur & Projet */}
       <section aria-label="Informations du demandeur">
         <DemandeurInfo application={data.application} />
       </section>
 
-      {/* 3. Complétude & Éligibilité */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 4. Complétude & Éligibilité */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section aria-label="Complétude documentaire">
           <CompletudeSection compliance={data.compliance} />
         </section>
@@ -57,22 +67,6 @@ export default async function DossierDetailPage({ params }: PageProps) {
           <EligibiliteSection eligibility={data.eligibility} />
         </section>
       </div>
-
-      {/* 4. Compléments & Synthèse IA */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section aria-label="Demandes de compléments">
-          <ComplementsSection complements={data.complements} />
-        </section>
-
-        <section aria-label="Synthèse de l'intelligence artificielle">
-          <AiSynthesis aiAnalysis={data.aiAnalysis} />
-        </section>
-      </div>
-
-      {/* 5. Historique opérationnel */}
-      <section aria-label="Historique du dossier">
-        <HistoriqueSection history={data.history} />
-      </section>
     </div>
   )
 }

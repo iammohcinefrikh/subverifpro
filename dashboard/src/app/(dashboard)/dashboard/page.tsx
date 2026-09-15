@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic"
 
 export default async function DashboardPage() {
   const data = await getDashboardData()
+  const statusTotal = data.statusDistribution.reduce((acc, item) => acc + item.count, 0)
 
   return (
     <div className="space-y-6">
@@ -38,7 +39,7 @@ export default async function DashboardPage() {
 
       {/* Middle: Overall Situation (4 Columns / Cards) */}
       <section aria-label="Situation globale" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatusChart data={data.statusDistribution} total={data.kpis.totalApplications} />
+        <StatusChart data={data.statusDistribution} total={statusTotal} />
         <CompletenessChart data={data.completenessDistribution} />
         <EligibilityChart data={data.eligibilityDistribution} />
         <DeadlinesList deadlines={data.upcomingDeadlines} />

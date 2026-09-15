@@ -1,6 +1,8 @@
 import { Metadata } from "next"
 import { getDossiers, isDossierType, type DossierType } from "@/lib/queries/dossiers"
 import { DossiersTable } from "@/components/dashboard/dossiers-table"
+import { DossiersListSkeleton } from "@/components/dashboard/dossiers-list-skeleton"
+import { NavigationPendingShell } from "@/components/navigation-pending"
 
 export const metadata: Metadata = {
   title: "Dossiers",
@@ -10,19 +12,23 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 const typeLabels: Record<DossierType, string> = {
-  "a-verifier": "Dossiers à vérifier",
+  "recues": "Dossiers reçus",
   "complets": "Dossiers complets",
   "incomplets": "Dossiers incomplets",
-  "en-attente": "Dossiers en attente de complément",
   "urgents": "Dossiers urgents",
+  "en-traitement": "Dossiers en traitement",
+  "eligibles": "Dossiers éligibles",
+  "non-eligibles": "Dossiers non éligibles",
 }
 
 const typeDescriptions: Record<DossierType, string> = {
-  "a-verifier": "Dossiers soumis ou en attente de vérification.",
-  "complets": "Dossiers dont la complétude documentaire est atteinte.",
-  "incomplets": "Dossiers présentant des pièces manquantes ou expirées.",
-  "en-attente": "Dossiers en attente d'un complément de la part du demandeur.",
-  "urgents": "Dossiers à traiter en priorité (échéance proche ou non-conformité).",
+  "recues": "Tous les dossiers que vous avez reçus.",
+  "complets": "Dossiers qui rassemblent toutes les pièces demandées.",
+  "incomplets": "Dossiers auxquels il manque une ou plusieurs pièces.",
+  "urgents": "Dossiers dont le projet démarre dans les 10 prochains jours.",
+  "en-traitement": "Dossiers en cours d'examen.",
+  "eligibles": "Dossiers qui remplissent les conditions pour obtenir la subvention.",
+  "non-eligibles": "Dossiers qui ne remplissent pas les conditions pour obtenir la subvention.",
 }
 
 export default async function DossiersPage({
@@ -38,17 +44,21 @@ export default async function DossiersPage({
   const title = type ? typeLabels[type] : "Tous les dossiers"
   const description = type
     ? typeDescriptions[type]
-    : "Vue consolidée de l'ensemble des dossiers de subvention."
+    : "Vue d'ensemble de tous les dossiers de subvention."
 
   return (
     <div className="space-y-4">
-      <DossiersTable
-        dossiers={dossiers}
-        title={title}
-        description={description}
-        // Filtering by status client-side only makes sense on the consolidated view.
-        showStatusFilter={!type}
-      />
+      <NavigationPendingShell fallback={<DossiersListSkeleton />}>
+        <DossiersTable
+          dossiers={dossiers}
+          title={title}
+          description={description}
+          from={type ?? "all"}
+          // Filtering by status client-side makes sense on the consolidated and
+          // "Reçus" views, since both span several statuses.
+          showStatusFilter={!type || type === "recues"}
+        />
+      </NavigationPendingShell>
     </div>
   )
 }

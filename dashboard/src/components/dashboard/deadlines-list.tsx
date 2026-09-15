@@ -41,7 +41,7 @@ export function DeadlinesList({ deadlines }: DeadlinesListProps) {
               {deadlines.map((item) => (
                 <Link
                   key={item.id}
-                  href={`/dashboard/dossiers/${item.applicationId}`}
+                  href={`/dashboard/dossiers/${item.applicationId}?from=dashboard`}
                   className="block p-2 rounded-md border border-stone-200/80 dark:border-stone-800 hover:border-stone-400 dark:hover:border-stone-600 bg-card hover:bg-stone-50/80 dark:hover:bg-stone-900/60 transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-2">

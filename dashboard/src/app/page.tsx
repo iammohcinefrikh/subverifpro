@@ -43,11 +43,6 @@ function LoginForm() {
     }
   }
 
-  const handleFillDemo = () => {
-    setEmail("jean.dupont@subverif.pro")
-    setPassword("Password123!")
-  }
-
   return (
     <Card className="border border-stone-200 dark:border-stone-800 shadow-sm bg-card">
       <CardHeader className="p-5 pb-3">
@@ -73,7 +68,7 @@ function LoginForm() {
             <Input
               id="email"
               type="email"
-              placeholder="instructeur@subverif.pro"
+              placeholder="Entrez votre e-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -91,6 +86,7 @@ function LoginForm() {
             <Input
               id="password"
               type="password"
+              placeholder="Entrez votre mot de passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -100,7 +96,7 @@ function LoginForm() {
           </div>
         </CardContent>
 
-        <CardFooter className="p-5 pt-1 flex flex-col gap-2.5">
+        <CardFooter className="p-5 pt-1">
           <Button
             type="submit"
             disabled={isLoading}
@@ -108,17 +104,6 @@ function LoginForm() {
           >
             {isLoading ? "Connexion en cours..." : "Se connecter"}
           </Button>
-
-          <div className="w-full pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Compte de démonstration</span>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-primary hover:underline font-medium cursor-pointer"
-            >
-              Remplir automatiquement
-            </button>
-          </div>
         </CardFooter>
       </form>
     </Card>

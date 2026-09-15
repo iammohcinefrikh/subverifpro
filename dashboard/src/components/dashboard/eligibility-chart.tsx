@@ -18,12 +18,12 @@ export function EligibilityChart({ data }: EligibilityChartProps) {
 
   const getIcon = (result: string) => {
     switch (result.toUpperCase()) {
-      case "ELIGIBLE":
+      case "PASS":
         return { icon: CheckmarkCircle02Icon, color: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" }
-      case "NON_ELIGIBLE":
+      case "FAIL":
+      case "FAILED":
         return { icon: Cancel01Icon, color: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40" }
-      case "A_REVOIR":
-      case "ATTENTION":
+      case "WARNING":
         return { icon: AlertCircleIcon, color: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40" }
       default:
         return { icon: Search01Icon, color: "text-stone-600 dark:text-stone-400 bg-stone-100 dark:bg-stone-800" }

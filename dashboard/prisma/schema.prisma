@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,270 +8,342 @@ datasource db {
 }
 
 // -----------------------------------------------------------------------------
-// Better-Auth Tables (replaces instructors table for auth and user management)
+// Enums
 // -----------------------------------------------------------------------------
 
-model User {
+enum ApplicationStatus {
+  SUBMITTED
+  INCOMPLETE
+  PENDING
+  ACCEPTED
+  REJECTED
+  CONFORME
+
+  @@map("application_status")
+}
+
+enum LogService {
+  S1
+  S2
+  S3
+  S4
+
+  @@map("log_service")
+}
+
+enum LogErrorType {
+  DOWNTIME
+  NODE_ERROR
+
+  @@map("log_error_type")
+}
+
+// -----------------------------------------------------------------------------
+// Better-Auth Tables
+// Model names stay lowercase because the better-auth Prisma adapter expects
+// `user` / `session` / `account` / `verification`.
+// -----------------------------------------------------------------------------
+
+model user {
   id            String   @id
   name          String
   email         String   @unique
   emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime @default(now()) @db.Timestamptz
-  updatedAt     DateTime @updatedAt @db.Timestamptz
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @db.Timestamptz(6)
 
   // Custom instructor fields
   fullName String?  @map("full_name") @db.VarChar
   isActive Boolean? @default(true) @map("is_active")
 
-  sessions Session[]
-  accounts Account[]
-
-  assignedApplications Application[]  @relation("AssignedInstructor")
-  dossierEvents        DossierEvent[]
+  account       account[]
+  applications  Application[]  @relation("AssignedInstructor")
+  dossierEvents DossierEvent[]
+  session       session[]
 
   @@map("user")
 }
 
-model Session {
+model session {
   id        String   @id
-  expiresAt DateTime @db.Timestamptz
+  expiresAt DateTime @db.Timestamptz(6)
   token     String   @unique
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @db.Timestamptz(6)
   ipAddress String?
   userAgent String?
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("session")
-  @@index([userId])
 }
 
-model Account {
+model account {
   id                    String    @id
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
-  accessTokenExpiresAt  DateTime? @db.Timestamptz
-  refreshTokenExpiresAt DateTime? @db.Timestamptz
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(6)
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now()) @db.Timestamptz
-  updatedAt             DateTime  @updatedAt @db.Timestamptz
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @db.Timestamptz(6)
+  user                  user      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([providerId, accountId])
   @@map("account")
-  @@index([userId])
 }
 
-model Verification {
+model verification {
   id         String   @id
   identifier String
   value      String
-  expiresAt  DateTime @db.Timestamptz
-  createdAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt  DateTime @updatedAt @db.Timestamptz
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([identifier, value])
   @@map("verification")
-  @@index([identifier])
 }
 
 // -----------------------------------------------------------------------------
-// Core Business Tables (Protected existing schema)
+// Core Business Tables
 // -----------------------------------------------------------------------------
 
 model Program {
-  id           String    @id @default(uuid()) @db.Uuid
-  programId    String    @unique @map("program_id") @db.VarChar
-  name         String    @db.VarChar
-  description  String?   @db.Text
-  status       String?   @db.VarChar
-  createdAt    DateTime? @map("created_at") @db.Timestamptz
-  updatedAt    DateTime? @map("updated_at") @db.Timestamptz
-  requirements Json?     @db.JsonB
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  programId    String    @unique @map("program_id") @db.VarChar(100)
+  name         String    @db.VarChar(255)
+  description  String?
+  status       String?   @default("ACTIVE") @db.VarChar(30)
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  requirements Json?     @default("[]")
 
-  applications        Application[]
-  eligibilityCriteria ProgramEligibilityCriterion[]
+  applications           Application[]
+  complianceChecks       ComplianceCheck[]
+  eligibilityAssessments EligibilityAssessment[]
+  eligibilityCriteria    ProgramEligibilityCriterion[]
 
   @@map("programs")
 }
 
 model ProgramEligibilityCriterion {
-  id             String    @id @default(uuid()) @db.Uuid
-  programId      String    @map("program_id") @db.VarChar
-  criterionCode  String    @map("criterion_code") @db.VarChar
-  criterionLabel String    @map("criterion_label") @db.VarChar
-  fieldName      String    @map("field_name") @db.VarChar
-  operator       String    @db.VarChar
-  expectedValue  Json      @map("expected_value") @db.JsonB
-  weight         Int       @db.Integer
-  isActive       Boolean   @map("is_active") @db.Boolean
-  createdAt      DateTime? @map("created_at") @db.Timestamptz
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  programId      String    @map("program_id") @db.VarChar(100)
+  criterionCode  String    @map("criterion_code") @db.VarChar(100)
+  criterionLabel String    @map("criterion_label") @db.VarChar(200)
+  fieldName      String    @map("field_name") @db.VarChar(100)
+  operator       String    @db.VarChar(30)
+  expectedValue  Json      @map("expected_value")
+  weight         Int       @default(33)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  program           Program            @relation(fields: [programId], references: [programId])
-  eligibilityChecks EligibilityCheck[]
+  program Program @relation(fields: [programId], references: [programId], onDelete: Cascade, onUpdate: NoAction)
 
+  @@unique([programId, criterionCode])
   @@map("program_eligibility_criteria")
 }
 
 model Application {
-  id                 String    @id @default(uuid()) @db.Uuid
-  applicationId      String    @unique @map("application_id") @db.Uuid
-  programId          String    @map("program_id") @db.VarChar
-  cin                String    @db.VarChar
-  firstName          String    @map("first_name") @db.VarChar
-  lastName           String    @map("last_name") @db.VarChar
-  dateOfBirth        DateTime? @map("date_of_birth") @db.Date
-  phone              String?   @db.VarChar
-  email              String?   @db.VarChar
-  address            String?   @db.Text
-  city               String?   @db.VarChar
-  region             String?   @db.VarChar
-  structureType      String?   @map("structure_type") @db.VarChar
-  nomOuRaisonSociale String?   @map("nom_ou_raison_sociale") @db.VarChar
-  secteurActivite    String?   @map("secteur_activite") @db.Text
-  ancienneteAnnees   Int?      @map("anciennete_annees") @db.Integer
-  projectObject      String?   @map("project_object") @db.Text
-  projectDescription String?   @map("project_description") @db.Text
-  projectStartDate   DateTime? @map("project_start_date") @db.Date
-  projectEndDate     DateTime? @map("project_end_date") @db.Date
-  totalAmount        Decimal?  @map("total_amount") @db.Decimal
-  requestedAmount    Decimal?  @map("requested_amount") @db.Decimal
-  depenses           Json?     @db.JsonB
-  financements       Json?     @db.JsonB
-  documents          Json?     @db.JsonB
-  assignedInstructor String?   @map("assigned_instructor") @db.VarChar
-  status             String?   @default("SUBMITTED") @db.VarChar(50)
-  submittedAt        DateTime? @map("submitted_at") @db.Timestamptz
-  createdAt          DateTime? @map("created_at") @db.Timestamptz
-  updatedAt          DateTime? @map("updated_at") @db.Timestamptz
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId      String            @unique @default(dbgenerated("gen_random_uuid()")) @map("application_id") @db.Uuid
+  programId          String            @map("program_id") @db.VarChar(100)
+  cin                String            @db.VarChar(20)
+  firstName          String            @map("first_name") @db.VarChar(100)
+  lastName           String            @map("last_name") @db.VarChar(100)
+  dateOfBirth        DateTime?         @map("date_of_birth") @db.Date
+  phone              String?           @db.VarChar(30)
+  email              String?           @db.VarChar(255)
+  address            String?
+  city               String?           @db.VarChar(100)
+  region             String?           @db.VarChar(100)
+  structureType      String?           @map("structure_type") @db.VarChar(100)
+  nomOuRaisonSociale String?           @map("nom_ou_raison_sociale") @db.VarChar(255)
+  secteurActivite    String?           @map("secteur_activite")
+  ancienneteAnnees   Int?              @map("anciennete_annees")
+  projectObject      String?           @map("project_object")
+  projectDescription String?           @map("project_description")
+  projectStartDate   DateTime?         @map("project_start_date") @db.Date
+  projectEndDate     DateTime?         @map("project_end_date") @db.Date
+  totalAmount        Decimal?          @map("total_amount") @db.Decimal(15, 2)
+  requestedAmount    Decimal?          @map("requested_amount") @db.Decimal(15, 2)
+  depenses           Json?             @default("[]")
+  financements       Json?             @default("[]")
+  documents          Json?             @default("[]")
+  assignedInstructor String?           @map("assigned_instructor") @db.VarChar(20)
+  status             ApplicationStatus? @default(SUBMITTED)
+  submittedAt        DateTime?         @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  createdAt          DateTime?         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime?         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  candidateId        String?           @map("candidate_id") @db.Uuid
+  complianceRate     Decimal?          @map("compliance_rate") @db.Decimal(5, 2)
 
-  program               Program                @relation(fields: [programId], references: [programId])
-  instructor            User?                  @relation("AssignedInstructor", fields: [assignedInstructor], references: [id])
-  complianceCheck       ComplianceCheck?
-  eligibilityAssessment EligibilityAssessment?
-  eligibilityChecks     EligibilityCheck[]
-  aiAnalyses            AiAnalysis[]
-  complementRequests    ComplementRequest[]
-  dossierEvents         DossierEvent[]
-  serviceMetrics        ServiceMetric[]
+  program                     Program                     @relation(fields: [programId], references: [programId], onDelete: NoAction, onUpdate: NoAction, map: "fk_application_program")
+  instructor                  user?                       @relation("AssignedInstructor", fields: [assignedInstructor], references: [id], onUpdate: NoAction)
+  candidate                   CandidateUser?              @relation(fields: [candidateId], references: [id], onUpdate: NoAction, map: "fk_application_candidate")
+  complianceCheck             ComplianceCheck?
+  eligibilityAssessment       EligibilityAssessment?
+  applicationEligibilityResult ApplicationEligibilityResult?
+  aiAnalysis                  AiAnalysis?
+  complementRequests          ComplementRequest[]
+  dossierEvents               DossierEvent[]
+  serviceMetrics              ServiceMetric[]
 
+  @@unique([cin, programId], map: "unique_cin_program")
+  @@index([cin], map: "applications_cin_index")
+  @@index([programId], map: "applications_program_id_index")
+  @@index([status], map: "applications_status_index")
+  @@index([candidateId], map: "idx_applications_candidate_id")
   @@map("applications")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ApplicationEligibilityResult {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId   String   @unique @map("application_id") @db.Uuid
+  overallStatus   String   @map("overall_status") @db.VarChar(10)
+  totalPoints     Int      @default(0) @map("total_points")
+  passedCriteria  Int      @default(0) @map("passed_criteria")
+  failedCriteria  Int      @default(0) @map("failed_criteria")
+  warningCriteria Int      @default(0) @map("warning_criteria")
+  criteria        Json     @default("{}")
+  checkedAt       DateTime @default(now()) @map("checked_at") @db.Timestamptz(6)
+
+  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_eligibility_result_application")
+
+  @@map("application_eligibility_results")
+}
+
 model ComplianceCheck {
-  id                      String    @id @default(uuid()) @db.Uuid
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   applicationId           String    @unique @map("application_id") @db.Uuid
-  programId               String    @map("program_id") @db.VarChar
-  completenessRate        Decimal?  @map("completeness_rate") @db.Decimal
-  status                  String?   @db.VarChar
-  documents               Json?     @db.JsonB
-  missingDocuments        Json?     @map("missing_documents") @db.JsonB
-  expiredDocuments        Json?     @map("expired_documents") @db.JsonB
-  presentDocuments        Json?     @map("present_documents") @db.JsonB
-  mandatoryDocumentsCount Int?      @map("mandatory_documents_count") @db.Integer
-  presentCount            Int?      @map("present_count") @db.Integer
-  missingCount            Int?      @map("missing_count") @db.Integer
-  expiredCount            Int?      @map("expired_count") @db.Integer
-  checkedAt               DateTime? @map("checked_at") @db.Timestamptz
-  createdAt               DateTime? @map("created_at") @db.Timestamptz
-  updatedAt               DateTime? @map("updated_at") @db.Timestamptz
+  programId               String    @map("program_id") @db.VarChar(100)
+  completenessRate        Decimal?  @default(0) @map("completeness_rate") @db.Decimal(5, 2)
+  status                  String?   @default("INCOMPLETE") @db.VarChar(30)
+  documents               Json?     @default("[]")
+  missingDocuments        Json?     @default("[]") @map("missing_documents")
+  expiredDocuments        Json?     @default("[]") @map("expired_documents")
+  presentDocuments        Json?     @default("[]") @map("present_documents")
+  mandatoryDocumentsCount Int?      @default(0) @map("mandatory_documents_count")
+  presentCount            Int?      @default(0) @map("present_count")
+  missingCount            Int?      @default(0) @map("missing_count")
+  expiredCount            Int?      @default(0) @map("expired_count")
+  checkedAt               DateTime? @default(now()) @map("checked_at") @db.Timestamptz(6)
+  createdAt               DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  candidateId             String?   @map("candidate_id") @db.Uuid
 
-  application Application @relation(fields: [applicationId], references: [applicationId])
+  application Application    @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_check_application")
+  program     Program        @relation(fields: [programId], references: [programId], onDelete: NoAction, onUpdate: NoAction, map: "fk_check_program")
+  candidate   CandidateUser? @relation(fields: [candidateId], references: [id], onUpdate: NoAction, map: "fk_compliance_candidate")
 
+  @@index([candidateId], map: "idx_compliance_candidate_id")
   @@map("compliance_checks")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model EligibilityAssessment {
-  id               String    @id @default(uuid()) @db.Uuid
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   applicationId    String    @unique @map("application_id") @db.Uuid
-  programId        String    @map("program_id") @db.VarChar
-  eligibilityScore Int       @map("eligibility_score") @db.Integer
-  result           String    @db.VarChar
-  failedCriteria   String[]  @map("failed_criteria")
-  assessedAt       DateTime? @map("assessed_at") @db.Timestamptz
+  programId        String    @map("program_id") @db.VarChar(100)
+  eligibilityScore Int       @map("eligibility_score")
+  result           String    @db.VarChar(20)
+  failedCriteria   String[]  @default([]) @map("failed_criteria")
+  assessedAt       DateTime? @default(now()) @map("assessed_at") @db.Timestamptz(6)
 
-  application Application        @relation(fields: [applicationId], references: [applicationId])
-  checks      EligibilityCheck[]
+  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_assessment_application")
+  program     Program     @relation(fields: [programId], references: [programId], onDelete: NoAction, onUpdate: NoAction, map: "fk_assessment_program")
 
   @@map("eligibility_assessments")
 }
 
-model EligibilityCheck {
-  id            String    @id @default(uuid()) @db.Uuid
-  assessmentId  String    @map("assessment_id") @db.Uuid
-  applicationId String    @map("application_id") @db.Uuid
-  criterionId   String?   @map("criterion_id") @db.Uuid
-  criterionCode String    @map("criterion_code") @db.VarChar
-  status        String    @db.VarChar
-  detail        String?   @db.Text
-  pointsAwarded Int?      @map("points_awarded") @db.Integer
-  checkedAt     DateTime? @map("checked_at") @db.Timestamptz
-
-  assessment  EligibilityAssessment        @relation(fields: [assessmentId], references: [id])
-  application Application                  @relation(fields: [applicationId], references: [applicationId])
-  criterion   ProgramEligibilityCriterion? @relation(fields: [criterionId], references: [id])
-
-  @@map("eligibility_checks")
-}
-
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model AiAnalysis {
-  id                    String    @id @default(uuid()) @db.Uuid
-  applicationId         String    @map("application_id") @db.Uuid
-  modelName             String    @map("model_name") @db.VarChar
-  budgetCoherence       String?   @map("budget_coherence") @db.VarChar
-  budgetComment         String?   @map("budget_comment") @db.Text
-  projectQualityScore   Int?      @map("project_quality_score") @db.Integer
-  riskFlags             String[]  @map("risk_flags")
-  strengths             String[]  @map("strengths")
-  instructorFocusPoints String[]  @map("instructor_focus_points")
-  overallRecommendation String?   @map("overall_recommendation") @db.VarChar
-  summaryFr             String?   @map("summary_fr") @db.Text
-  rawResponse           Json?     @map("raw_response") @db.JsonB
-  status                String?   @db.VarChar
-  analyzedAt            DateTime? @map("analyzed_at") @db.Timestamptz
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId         String    @unique(map: "ai_analyses_application_unique") @map("application_id") @db.Uuid
+  modelName             String    @map("model_name") @db.VarChar(100)
+  budgetCoherence       String?   @map("budget_coherence") @db.VarChar(20)
+  budgetComment         String?   @map("budget_comment")
+  projectQualityScore   Int?      @map("project_quality_score")
+  riskFlags             Json?     @default("[]") @map("risk_flags")
+  strengths             Json?     @default("[]")
+  instructorFocusPoints Json?     @default("[]") @map("instructor_focus_points")
+  overallRecommendation Json?     @map("overall_recommendation")
+  summaryFr             String?   @map("summary_fr")
+  rawResponse           Json?     @map("raw_response")
+  status                String?   @default("SUCCESS") @db.VarChar(30)
+  analyzedAt            DateTime? @default(now()) @map("analyzed_at") @db.Timestamptz(6)
 
-  application Application @relation(fields: [applicationId], references: [applicationId])
+  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_ai_application")
 
   @@map("ai_analyses")
 }
 
 model ComplementRequest {
-  id            String    @id @default(uuid()) @db.Uuid
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   applicationId String    @map("application_id") @db.Uuid
   missingDocs   String[]  @map("missing_docs")
-  deadline      DateTime  @db.Timestamptz
-  status        String?   @db.VarChar
-  notifiedAt    DateTime? @map("notified_at") @db.Timestamptz
-  receivedAt    DateTime? @map("received_at") @db.Timestamptz
-  createdAt     DateTime? @map("created_at") @db.Timestamptz
+  deadline      DateTime  @db.Timestamptz(6)
+  status        String?   @default("PENDING") @db.VarChar(30)
+  notifiedAt    DateTime? @map("notified_at") @db.Timestamptz(6)
+  receivedAt    DateTime? @map("received_at") @db.Timestamptz(6)
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  candidateId   String?   @map("candidate_id") @db.Uuid
 
-  application Application @relation(fields: [applicationId], references: [applicationId])
+  application Application    @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_complement_application")
+  candidate   CandidateUser? @relation(fields: [candidateId], references: [id], onUpdate: NoAction, map: "fk_complement_candidate")
 
+  @@index([deadline, status], map: "complement_requests_deadline_status_index")
+  @@index([candidateId], map: "idx_complement_candidate_id")
   @@map("complement_requests")
 }
 
 model DossierEvent {
-  id            String    @id @default(uuid()) @db.Uuid
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   applicationId String    @map("application_id") @db.Uuid
   userId        String?   @map("user_id")
   eventType     String    @map("event_type") @db.VarChar(50)
-  description   String    @db.Text
-  metadata      Json?     @db.JsonB
-  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  description   String
+  metadata      Json?
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade)
-  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        user?       @relation(fields: [userId], references: [id], onUpdate: NoAction)
+  application Application @relation(fields: [applicationId], references: [applicationId], onDelete: Cascade, onUpdate: NoAction, map: "fk_dossier_events_application")
 
-  @@index([applicationId])
-  @@index([createdAt(sort: Desc)])
+  @@index([applicationId], map: "idx_dossier_events_application")
+  @@index([createdAt(sort: Desc)], map: "idx_dossier_events_created")
   @@map("dossier_events")
+}
+
+model CandidateUser {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String    @unique @db.VarChar(255)
+  passwordHash   String    @map("password_hash") @db.VarChar(255)
+  nom            String    @db.VarChar(100)
+  prenom         String    @db.VarChar(100)
+  role           String?   @default("CANDIDATE") @db.VarChar(50)
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  candidateId    String?   @map("candidate_id") @db.VarChar(50)
+  cin            String?   @db.VarChar(30)
+  phone          String?   @db.VarChar(30)
+  structureNom   String?   @map("structure_nom") @db.VarChar(255)
+  structureType  String?   @map("structure_type") @db.VarChar(50)
+
+  applications       Application[]
+  complementRequests ComplementRequest[]
+  complianceChecks   ComplianceCheck[]
+
+  @@index([candidateId], map: "idx_candidate_users_candidate_id")
+  @@index([email], map: "idx_candidate_users_email")
+  @@map("candidate_users")
 }
 
 // -----------------------------------------------------------------------------
@@ -280,37 +351,40 @@ model DossierEvent {
 // -----------------------------------------------------------------------------
 
 model WorkflowLog {
-  id        String    @id @default(uuid()) @db.Uuid
-  service   String    @db.VarChar
-  node      String    @db.VarChar
-  message   String    @db.Text
-  createdAt DateTime? @map("created_at") @db.Timestamptz
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service   LogService
+  message   String
+  createdAt DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  node      String       @default("") @db.VarChar(100)
+  errorType LogErrorType @map("error_type")
 
+  @@index([service, createdAt], map: "workflow_logs_service_index")
   @@map("workflow_logs")
 }
 
 model ServiceMetric {
-  id              String    @id @default(uuid()) @db.Uuid
-  applicationId   String?   @map("application_id") @db.Uuid
-  g1StartedAt     DateTime? @map("g1_started_at") @db.Timestamptz
-  g1EndedAt       DateTime? @map("g1_ended_at") @db.Timestamptz
-  g1DurationMs    Int?      @map("g1_duration_ms") @db.Integer
-  g2StartedAt     DateTime? @map("g2_started_at") @db.Timestamptz
-  g2EndedAt       DateTime? @map("g2_ended_at") @db.Timestamptz
-  g2DurationMs    Int?      @map("g2_duration_ms") @db.Integer
-  g3StartedAt     DateTime? @map("g3_started_at") @db.Timestamptz
-  g3EndedAt       DateTime? @map("g3_ended_at") @db.Timestamptz
-  g3DurationMs    Int?      @map("g3_duration_ms") @db.Integer
-  g4StartedAt     DateTime? @map("g4_started_at") @db.Timestamptz
-  g4EndedAt       DateTime? @map("g4_ended_at") @db.Timestamptz
-  g4DurationMs    Int?      @map("g4_duration_ms") @db.Integer
-  g5StartedAt     DateTime? @map("g5_started_at") @db.Timestamptz
-  g5EndedAt       DateTime? @map("g5_ended_at") @db.Timestamptz
-  g5DurationMs    Int?      @map("g5_duration_ms") @db.Integer
-  createdAt       DateTime? @map("created_at") @db.Timestamptz
-  totalDurationMs Int?      @map("total_duration_ms") @db.Integer
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId   String?      @map("application_id") @db.Uuid
+  g1StartedAt     DateTime?    @map("g1_started_at") @db.Timestamptz(6)
+  g1EndedAt       DateTime?    @map("g1_ended_at") @db.Timestamptz(6)
+  g2StartedAt     DateTime?    @map("g2_started_at") @db.Timestamptz(6)
+  g2EndedAt       DateTime?    @map("g2_ended_at") @db.Timestamptz(6)
+  g3StartedAt     DateTime?    @map("g3_started_at") @db.Timestamptz(6)
+  g3EndedAt       DateTime?    @map("g3_ended_at") @db.Timestamptz(6)
+  g4StartedAt     DateTime?    @map("g4_started_at") @db.Timestamptz(6)
+  g4EndedAt       DateTime?    @map("g4_ended_at") @db.Timestamptz(6)
+  g5StartedAt     DateTime?    @map("g5_started_at") @db.Timestamptz(6)
+  g5EndedAt       DateTime?    @map("g5_ended_at") @db.Timestamptz(6)
+  createdAt       DateTime?    @default(now()) @map("created_at") @db.Timestamptz(6)
+  g1DurationMs    Int?         @default(dbgenerated("((EXTRACT(epoch FROM (g1_ended_at - g1_started_at)) * (1000)::numeric))::integer")) @map("g1_duration_ms")
+  g2DurationMs    Int?         @default(dbgenerated("((EXTRACT(epoch FROM (g2_ended_at - g2_started_at)) * (1000)::numeric))::integer")) @map("g2_duration_ms")
+  g3DurationMs    Int?         @default(dbgenerated("((EXTRACT(epoch FROM (g3_ended_at - g3_started_at)) * (1000)::numeric))::integer")) @map("g3_duration_ms")
+  g4DurationMs    Int?         @default(dbgenerated("((EXTRACT(epoch FROM (g4_ended_at - g4_started_at)) * (1000)::numeric))::integer")) @map("g4_duration_ms")
+  g5DurationMs    Int?         @default(dbgenerated("((EXTRACT(epoch FROM (g5_ended_at - g5_started_at)) * (1000)::numeric))::integer")) @map("g5_duration_ms")
+  totalDurationMs Int?         @default(dbgenerated("((((COALESCE(((EXTRACT(epoch FROM (g1_ended_at - g1_started_at)) * (1000)::numeric))::integer, 0) + COALESCE(((EXTRACT(epoch FROM (g2_ended_at - g2_started_at)) * (1000)::numeric))::integer, 0)) + COALESCE(((EXTRACT(epoch FROM (g3_ended_at - g3_started_at)) * (1000)::numeric))::integer, 0)) + COALESCE(((EXTRACT(epoch FROM (g4_ended_at - g4_started_at)) * (1000)::numeric))::integer, 0)) + COALESCE(((EXTRACT(epoch FROM (g5_ended_at - g5_started_at)) * (1000)::numeric))::integer, 0))")) @map("total_duration_ms")
 
-  application Application? @relation(fields: [applicationId], references: [applicationId])
+  application Application? @relation(fields: [applicationId], references: [applicationId], onUpdate: NoAction, map: "fk_metrics_application")
 
+  @@index([applicationId], map: "service_metrics_application_index")
   @@map("service_metrics")
 }

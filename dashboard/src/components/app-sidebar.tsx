@@ -9,34 +9,44 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { signOut, useSession } from "@/lib/auth-client"
+import { LinkPendingReporter } from "@/components/navigation-pending"
+import { ALL_DOSSIERS_HREF, isDossierType, parseDossierOrigin } from "@/lib/dossier-nav"
+import { STATS_HREF, STATS_LABEL } from "@/lib/nav"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   FileValidationIcon,
+  Analytics01Icon,
   DashboardSquare01Icon,
-  Folder01Icon,
+  FoldersIcon,
   Logout01Icon,
+  InboxIcon,
+  CheckmarkCircle02Icon,
+  Cancel01Icon,
+  CancelCircleIcon,
+  Search01Icon,
+  Clock01Icon,
+  Alert02Icon,
 } from "@hugeicons/core-free-icons"
 
-const dossierTypes = [
-  { key: "", label: "Tous les dossiers" },
-  { key: "a-verifier", label: "À vérifier" },
-  { key: "complets", label: "Complets" },
-  { key: "incomplets", label: "Incomplets" },
-  { key: "en-attente", label: "En attente de complément" },
-  { key: "urgents", label: "Urgents" },
+const dossierPages = [
+  { key: "recues", label: "Reçus", icon: InboxIcon },
+  { key: "complets", label: "Complets", icon: CheckmarkCircle02Icon },
+  { key: "incomplets", label: "Incomplets", icon: Cancel01Icon },
+  { key: "urgents", label: "Urgents", icon: Alert02Icon },
+  { key: "en-traitement", label: "En traitement", icon: Search01Icon },
+  { key: "eligibles", label: "Éligibles", icon: Clock01Icon },
+  { key: "non-eligibles", label: "Non Éligibles", icon: CancelCircleIcon },
 ] as const
 
 export function AppSidebar() {
@@ -46,7 +56,19 @@ export function AppSidebar() {
   const { data: session, isPending } = useSession()
 
   const typeParam = searchParams.get("type")
-  const isDossiersPage = pathname === "/dashboard/dossiers"
+  const isDossiersListPage = pathname === "/dashboard/dossiers"
+  const isDossierDetailPage = pathname.startsWith("/dashboard/dossiers/")
+
+  // Which dossier entry (a type, "all" or "dashboard") should stay highlighted.
+  // On the list page it comes from the `type` param; on a detail page the URL
+  // carries the list the user came from in the `from` param.
+  const activeDossierKey = isDossiersListPage
+    ? isDossierType(typeParam)
+      ? typeParam
+      : "all"
+    : isDossierDetailPage
+      ? parseDossierOrigin(searchParams.get("from"))
+      : null
 
   const handleLogout = async () => {
     try {
@@ -100,7 +122,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={pathname === "/dashboard"}
+                  isActive={pathname === "/dashboard" || activeDossierKey === "dashboard"}
                   className="rounded-md h-8 text-xs font-medium hover:bg-stone-100 dark:hover:bg-stone-800 data-active:bg-stone-900 data-active:text-stone-50 dark:data-active:bg-stone-100 dark:data-active:text-stone-900 transition-colors"
                   render={(props) => (
                     <Link {...props} href="/dashboard">
@@ -110,41 +132,73 @@ export function AppSidebar() {
                   )}
                 />
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+            Dossiers
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={pathname.startsWith("/dashboard/dossiers")}
+                  isActive={activeDossierKey === "all"}
                   className="rounded-md h-8 text-xs font-medium hover:bg-stone-100 dark:hover:bg-stone-800 data-active:bg-stone-900 data-active:text-stone-50 dark:data-active:bg-stone-100 dark:data-active:text-stone-900 transition-colors"
                   render={(props) => (
-                    <Link {...props} href="/dashboard/dossiers">
-                      <HugeiconsIcon icon={Folder01Icon} size={16} strokeWidth={2} />
-                      <span>Dossiers</span>
+                    <Link {...props} href={ALL_DOSSIERS_HREF} prefetch={false}>
+                      <HugeiconsIcon icon={FoldersIcon} size={16} strokeWidth={2} />
+                      <span>Tous</span>
+                      <LinkPendingReporter />
                     </Link>
                   )}
                 />
-                <SidebarMenuSub>
-                  {dossierTypes.map((item) => {
-                    const isActive =
-                      item.key === ""
-                        ? isDossiersPage && !typeParam
-                        : isDossiersPage && typeParam === item.key
-                    return (
-                      <SidebarMenuSubItem key={item.key || "all"}>
-                        <SidebarMenuSubButton
-                          isActive={isActive}
-                          render={(props) => (
-                            <Link
-                              {...props}
-                              href={`/dashboard/dossiers${item.key ? `?type=${item.key}` : ""}`}
-                            />
-                          )}
+              </SidebarMenuItem>
+              {dossierPages.map((item) => {
+                const isActive = activeDossierKey === item.key
+                return (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      className="rounded-md h-8 text-xs font-medium hover:bg-stone-100 dark:hover:bg-stone-800 data-active:bg-stone-900 data-active:text-stone-50 dark:data-active:bg-stone-100 dark:data-active:text-stone-900 transition-colors"
+                      render={(props) => (
+                        <Link
+                          {...props}
+                          href={`/dashboard/dossiers?type=${item.key}`}
+                          prefetch={false}
                         >
-                          {item.label}
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    )
-                  })}
-                </SidebarMenuSub>
+                          <HugeiconsIcon icon={item.icon} size={16} strokeWidth={2} />
+                          <span>{item.label}</span>
+                          <LinkPendingReporter />
+                        </Link>
+                      )}
+                    />
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+            Divers
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname === STATS_HREF}
+                  className="rounded-md h-8 text-xs font-medium hover:bg-stone-100 dark:hover:bg-stone-800 data-active:bg-stone-900 data-active:text-stone-50 dark:data-active:bg-stone-100 dark:data-active:text-stone-900 transition-colors"
+                  render={(props) => (
+                    <Link {...props} href={STATS_HREF} prefetch={false}>
+                      <HugeiconsIcon icon={Analytics01Icon} size={16} strokeWidth={2} />
+                      <span>{STATS_LABEL}</span>
+                      <LinkPendingReporter />
+                    </Link>
+                  )}
+                />
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

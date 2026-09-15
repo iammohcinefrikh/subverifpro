@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma"
 import { computePriority, type PriorityInfo } from "@/lib/utils/priority"
+import {
+  normalizeEligibilityStatus,
+  formatEligibilityLabel,
+  formatStatusLabel,
+} from "@/lib/queries/dashboard"
 
 export interface DossierDetailData {
   application: {
@@ -28,6 +33,8 @@ export interface DossierDetailData {
     projectEndDate: string | null
     totalAmount: number
     requestedAmount: number
+    /** Project expenses ("besoins") declared by the applicant. */
+    depenses: Array<{ id: string; libelle: string; montant: number }>
     status: string
     statusLabel: string
     submittedAt: string | null
@@ -58,15 +65,6 @@ export interface DossierDetailData {
       pointsAwarded: number | null
     }>
   }
-  complements: Array<{
-    id: string
-    missingDocs: string[]
-    deadline: string
-    deadlineDate: Date
-    isUrgent: boolean
-    status: string
-    receivedAt: string | null
-  }>
   aiAnalysis: {
     summary: string | null
     budgetCoherence: string | null
@@ -76,15 +74,7 @@ export interface DossierDetailData {
     strengths: string[]
     focusPoints: string[]
     recommendation: string | null
-    modelName: string | null
   } | null
-  history: Array<{
-    id: string
-    eventType: string
-    description: string
-    createdAt: string
-    userName: string
-  }>
 }
 
 type ComplianceDocEntry = string | Record<string, unknown>
@@ -106,28 +96,11 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
           },
         },
         complianceCheck: true,
-        eligibilityAssessment: {
-          include: {
-            checks: {
-              include: {
-                criterion: true,
-              },
-            },
-          },
-        },
+        applicationEligibilityResult: true,
         complementRequests: {
           orderBy: { deadline: "asc" },
         },
-        aiAnalyses: {
-          orderBy: { analyzedAt: "desc" },
-          take: 1,
-        },
-        dossierEvents: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            user: { select: { name: true } },
-          },
-        },
+        aiAnalysis: true,
       },
     })
 
@@ -136,19 +109,18 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
     }
 
     const comp = app.complianceCheck
-    const elig = app.eligibilityAssessment
+    const elig = app.applicationEligibilityResult
     const latestCompl = app.complementRequests?.[0]
-    const latestAi = app.aiAnalyses?.[0]
+    const latestAi = app.aiAnalysis
+
+    const eligibilityResult = normalizeEligibilityStatus(elig?.overallStatus)
 
     const deadline = latestCompl?.deadline ? new Date(latestCompl.deadline) : null
-    const missingCount = comp?.missingCount || 0
-    const expiredCount = comp?.expiredCount || 0
 
     const priority = computePriority({
+      projectStartDate: app.projectStartDate,
       deadline,
-      missingCount,
-      expiredCount,
-      eligibilityResult: elig?.result,
+      eligibilityScore: elig?.totalPoints ?? null,
     })
 
     // Build a lookup (document_type -> canonical name) from the program's
@@ -226,25 +198,61 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
         })
       : []
 
-    // Map eligibility checks with criterion labels
-    const checks = (elig?.checks || []).map((chk) => {
-      const criterionLabel =
-        chk.criterion?.criterionLabel ||
-        app.program?.eligibilityCriteria?.find((c) => c.criterionCode === chk.criterionCode)
-          ?.criterionLabel ||
-        chk.criterionCode
-
-      return {
-        id: chk.id,
-        criterionCode: chk.criterionCode,
-        criterionLabel,
-        status: chk.status,
-        detail: chk.detail,
-        pointsAwarded: chk.pointsAwarded,
+    // Project expenses are stored as a JSON array of `{ id, libelle, montant }`.
+    // Malformed entries are skipped rather than rendered as blanks.
+    const depenses: Array<{ id: string; libelle: string; montant: number }> = []
+    if (Array.isArray(app.depenses)) {
+      for (const item of app.depenses) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) continue
+        const rec = item as Record<string, unknown>
+        const libelle = typeof rec.libelle === "string" ? rec.libelle : null
+        const montant =
+          typeof rec.montant === "number" ? rec.montant : Number(rec.montant)
+        if (!libelle || !Number.isFinite(montant)) continue
+        depenses.push({
+          id: typeof rec.id === "string" ? rec.id : libelle,
+          libelle,
+          montant,
+        })
       }
-    })
+    }
 
-    const now = new Date()
+    // Map the criteria stored on the eligibility result into per-criterion rows.
+    // `criteria` is a JSON object keyed by the criterion label, each entry
+    // carrying a French `statut` ("Satisfait" / "À vérifier" / ...).
+    const criteriaEntries: Array<{ label: string; entry: Record<string, unknown> }> = []
+    if (elig?.criteria && typeof elig.criteria === "object" && !Array.isArray(elig.criteria)) {
+      for (const [label, entry] of Object.entries(elig.criteria as Record<string, unknown>)) {
+        criteriaEntries.push({
+          label,
+          entry: entry && typeof entry === "object" ? (entry as Record<string, unknown>) : {},
+        })
+      }
+    }
+
+    const toCheckStatus = (statut: unknown): string => {
+      const s = String(statut || "").toLowerCase()
+      if (s.includes("vérifi") || s.includes("verifi") || s.includes("attente") || s.includes("warning")) {
+        return "WARNING"
+      }
+      if (s.includes("non") || s.includes("fail") || s.includes("échec") || s.includes("echec")) {
+        return "FAILED"
+      }
+      if (s.includes("satisf") || s.includes("pass") || s.includes("valide")) {
+        return "PASSED"
+      }
+      return "WARNING"
+    }
+
+    const checks = criteriaEntries.map(({ label, entry }) => ({
+      id: label,
+      criterionCode: label,
+      criterionLabel: label,
+      status: toCheckStatus(entry.statut),
+      detail: typeof entry.explication === "string" ? entry.explication : null,
+      pointsAwarded:
+        typeof entry["points obtenus"] === "number" ? (entry["points obtenus"] as number) : null,
+    }))
 
     return {
       application: {
@@ -273,8 +281,9 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
         projectEndDate: app.projectEndDate ? app.projectEndDate.toISOString().split("T")[0] : null,
         totalAmount: Number(app.totalAmount || 0),
         requestedAmount: Number(app.requestedAmount || 0),
+        depenses,
         status: app.status || "SUBMITTED",
-        statusLabel: formatStatus(app.status || "SUBMITTED"),
+        statusLabel: formatStatusLabel(app.status || "SUBMITTED"),
         submittedAt: app.submittedAt ? app.submittedAt.toISOString() : null,
         priority,
       },
@@ -290,55 +299,24 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
         expiredDocuments: expiredDocs,
       },
       eligibility: {
-        score: elig?.eligibilityScore ?? 0,
-        result: (elig?.result || "NON_EVALUE").toUpperCase(),
-        resultLabel: formatEligibility(elig?.result || "NON_EVALUE"),
-        failedCriteria: elig?.failedCriteria || [],
+        score: elig?.totalPoints ?? 0,
+        result: eligibilityResult,
+        resultLabel: formatEligibilityLabel(eligibilityResult),
+        failedCriteria: checks.filter((c) => c.status === "FAILED").map((c) => c.criterionLabel),
         checks,
       },
-      complements: (app.complementRequests || []).map((c) => {
-        const d = new Date(c.deadline)
-        const diffMs = d.getTime() - now.getTime()
-        const isUrgent = diffMs <= 48 * 60 * 60 * 1000
-
-        return {
-          id: c.id,
-          missingDocs: c.missingDocs || [],
-          deadline: d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }),
-          deadlineDate: d,
-          isUrgent,
-          status: c.status || "EN_ATTENTE",
-          receivedAt: c.receivedAt ? c.receivedAt.toLocaleDateString("fr-FR") : null,
-        }
-      }),
       aiAnalysis: latestAi
         ? {
             summary: latestAi.summaryFr,
             budgetCoherence: latestAi.budgetCoherence,
             budgetComment: latestAi.budgetComment,
             qualityScore: latestAi.projectQualityScore,
-            risks: latestAi.riskFlags || [],
-            strengths: latestAi.strengths || [],
-            focusPoints: latestAi.instructorFocusPoints || [],
-            recommendation: latestAi.overallRecommendation,
-            modelName: latestAi.modelName,
+            risks: toStringArray(latestAi.riskFlags),
+            strengths: toStringArray(latestAi.strengths),
+            focusPoints: toStringArray(latestAi.instructorFocusPoints),
+            recommendation: toRecommendation(latestAi.overallRecommendation),
           }
         : null,
-      history: (app.dossierEvents || []).map((evt) => ({
-        id: evt.id,
-        eventType: evt.eventType,
-        description: evt.description,
-        createdAt: evt.createdAt
-          ? new Date(evt.createdAt).toLocaleDateString("fr-FR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—",
-        userName: evt.user?.name || "Système",
-      })),
     }
   } catch (error) {
     console.error("Error fetching dossier detail:", error)
@@ -346,39 +324,19 @@ export async function getDossierDetail(id: string): Promise<DossierDetailData | 
   }
 }
 
-function formatStatus(s: string) {
-  switch (s.toUpperCase()) {
-    case "SUBMITTED":
-      return "Reçu"
-    case "A_VERIFIER":
-      return "À vérifier"
-    case "COMPLET":
-      return "Complet"
-    case "INCOMPLET":
-      return "Incomplet"
-    case "COMPLEMENT_DEMANDE":
-      return "Complément demandé"
-    case "ELIGIBLE":
-      return "Éligible"
-    case "NON_ELIGIBLE":
-      return "Non éligible"
-    default:
-      return s
-  }
+/** Coerces a Prisma Json array value into a string array. */
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((v): v is string => typeof v === "string")
 }
 
-function formatEligibility(res: string) {
-  switch (res.toUpperCase()) {
-    case "ELIGIBLE":
-      return "Éligible"
-    case "NON_ELIGIBLE":
-      return "Non éligible"
-    case "A_REVOIR":
-    case "ATTENTION":
-      return "À réexaminer"
-    case "NON_EVALUE":
-      return "Non évalué"
-    default:
-      return res
+/** The AI recommendation is stored as JSON; display it as a plain string. */
+function toRecommendation(value: unknown): string | null {
+  if (typeof value === "string") return value
+  if (value && typeof value === "object") {
+    const rec = value as Record<string, unknown>
+    const candidate = rec.recommendation ?? rec.label ?? rec.value ?? rec.text
+    if (typeof candidate === "string") return candidate
   }
+  return null
 }
