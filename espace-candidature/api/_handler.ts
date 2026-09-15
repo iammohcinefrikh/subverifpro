@@ -298,7 +298,7 @@ export default async function apiHandler(req: any, res: any, next?: () => void) 
     return;
   }
 
-  if (req.method === 'POST' && url === '/api/candidate-users/login') {
+  if (req.method === 'POST' && (url === '/api/candidate-users/login' || url.startsWith('/api/candidate-users/login?') || url.startsWith('/api/candidate-users/login/'))) {
     const client = getDbClient(dbUrl);
     try {
       const { email, password } = await getRequestBody(req);
