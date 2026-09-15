@@ -30,9 +30,9 @@ export async function sendDossierToWebhook(
 ): Promise<WebhookResponse> {
   const targetUrl = customUrl || getWebhookUrl();
 
-  // En local Vite dev, si l'URL cible pointe vers stg-orch-api.abafusion.ai, on utilise le proxy local pour éliminer les erreurs CORS navigateur
+  // Utiliser le proxy /api/webhook-proxy pour éliminer les erreurs CORS navigateur (en local et sur Vercel)
   let effectiveUrl = targetUrl;
-  if (import.meta.env.DEV && targetUrl.startsWith('https://stg-orch-api.abafusion.ai')) {
+  if (targetUrl.startsWith('https://stg-orch-api.abafusion.ai')) {
     effectiveUrl = targetUrl.replace('https://stg-orch-api.abafusion.ai', '/api/webhook-proxy');
   }
 
@@ -122,7 +122,7 @@ export async function sendComplementToWebhook(
   const targetUrl = customUrl || getWebhookUrl();
 
   let effectiveUrl = targetUrl;
-  if (import.meta.env.DEV && targetUrl.startsWith('https://stg-orch-api.abafusion.ai')) {
+  if (targetUrl.startsWith('https://stg-orch-api.abafusion.ai')) {
     effectiveUrl = targetUrl.replace('https://stg-orch-api.abafusion.ai', '/api/webhook-proxy');
   }
 
